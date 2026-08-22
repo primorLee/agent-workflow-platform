@@ -1,0 +1,110 @@
+#!/sbin/openrc-run
+# OpenRC service template. Persistent paths are marker-authorized and read-only here.
+
+name="awp-vm-agent"
+description="Agent Workflow Platform VM Agent"
+command="/usr/local/bin/awp-vm-agent"
+command_args="--daemon --config /etc/awp-vm-agent/config.yaml"
+command_user="awp-vm-agent:awp-vm-agent"
+command_background="yes"
+
+PROG=awp-vm-agent
+SVC_USER=awp-vm-agent
+SVC_GROUP=awp-vm-agent
+CONFDIR=/etc/awp-vm-agent
+DATADIR=/var/lib/awp-vm-agent
+LOGDIR=/var/log/awp-vm-agent
+CONFIG=${CONFDIR}/config.yaml
+ENVFILE=${CONFDIR}/agent.env
+KEYFILE=${CONFDIR}/awp-vm-agent-release-key.asc
+MARKER=${CONFDIR}/.awp-install-owner-v1
+INITTARGET=/etc/init.d/awp-vm-agent
+SYSTEMDTARGET=/etc/systemd/system/awp-vm-agent.service
+RUNDIR=/run/${PROG}
+
+pidfile="${RUNDIR}/${PROG}.pid"
+output_log="${LOGDIR}/${PROG}.log"
+error_log="${LOGDIR}/${PROG}.log"
+
+depend() {
+    need net
+    after firewall
+}
+
+unsafe() {
+    eerror "$PROG: unsafe lifecycle state: $*"
+    return 77
+}
+exists_any() { [ -e "$1" ] || [ -L "$1" ]; }
+identity() { stat -c '%u:%g:%a' "$1" 2>/dev/null; }
+require_dir() {
+    [ ! -L "$1" ] && [ -d "$1" ] && [ "$(identity "$1")" = "$2" ] || unsafe "$1 directory contract mismatch"
+}
+require_file() {
+    [ ! -L "$1" ] && [ -f "$1" ] && [ "$(identity "$1")" = "$2" ] || unsafe "$1 file contract mismatch"
+}
+validate_contract() {
+    command -v getent >/dev/null 2>&1 || unsafe "getent is required" || return 77
+    command -v stat >/dev/null 2>&1 || unsafe "stat is required" || return 77
+    require_file "$MARKER" 0:0:400 || return 77
+    [ "$(stat -c '%h' "$MARKER" 2>/dev/null)" = 1 ] || unsafe "marker link count mismatch" || return 77
+    [ "$(awk 'END {print NR}' "$MARKER")" = 17 ] || unsafe "marker line count mismatch" || return 77
+    [ "$(sed -n '1p' "$MARKER")" = schema=awp-vm-agent-owner-v1 ] || unsafe "marker schema mismatch" || return 77
+    [ "$(sed -n '2p' "$MARKER")" = state=installed ] || unsafe "marker state mismatch" || return 77
+    INSTALL_ID=$(sed -n '3s/^install-id=//p' "$MARKER")
+    [ "$(sed -n '4p' "$MARKER")" = registered=1 ] || unsafe "service is not marker-registered" || return 77
+    UID_M=$(sed -n '6s/^uid=//p' "$MARKER")
+    GID_M=$(sed -n '8s/^gid=//p' "$MARKER")
+    SHELL_M=$(sed -n '10s/^shell=//p' "$MARKER")
+    [ "$(sed -n '5p' "$MARKER")" = user=$SVC_USER ] || unsafe "marker user mismatch" || return 77
+    [ "$(sed -n '7p' "$MARKER")" = group=$SVC_GROUP ] || unsafe "marker group mismatch" || return 77
+    [ "$(sed -n '9p' "$MARKER")" = home=$DATADIR ] || unsafe "marker home mismatch" || return 77
+    [ "$(sed -n '11p' "$MARKER")" = conf=$CONFDIR ] || unsafe "marker conf mismatch" || return 77
+    [ "$(sed -n '12p' "$MARKER")" = data=$DATADIR ] || unsafe "marker data mismatch" || return 77
+    [ "$(sed -n '13p' "$MARKER")" = log=$LOGDIR ] || unsafe "marker log mismatch" || return 77
+    [ "$(sed -n '14p' "$MARKER")" = binary=$command ] || unsafe "marker binary mismatch" || return 77
+    [ "$(sed -n '15p' "$MARKER")" = systemd=$SYSTEMDTARGET ] || unsafe "marker systemd mismatch" || return 77
+    [ "$(sed -n '16p' "$MARKER")" = init=$INITTARGET ] || unsafe "marker init mismatch" || return 77
+    [ "$(sed -n '17p' "$MARKER")" = init-system=openrc ] || unsafe "marker init-system mismatch" || return 77
+    case "$INSTALL_ID" in *[!0-9a-f]*|'') unsafe "marker install-id mismatch"; return 77 ;; esac
+    [ "${#INSTALL_ID}" = 64 ] || unsafe "marker install-id length mismatch" || return 77
+    case "$UID_M:$GID_M" in *[!0-9:]*|*::*|'') unsafe "marker numeric identity mismatch"; return 77 ;; esac
+    case "$SHELL_M" in /usr/sbin/nologin|/sbin/nologin) [ -x "$SHELL_M" ] || unsafe "nologin shell is missing" || return 77 ;; *) unsafe "marker shell mismatch"; return 77 ;; esac
+
+    PW=$(getent passwd "$SVC_USER" 2>/dev/null) || unsafe "service account missing" || return 77
+    GR=$(getent group "$SVC_GROUP" 2>/dev/null) || unsafe "service group missing" || return 77
+    [ "$(printf '%s\n' "$PW" | awk 'END {print NR}')" = 1 ] || unsafe "service account is ambiguous" || return 77
+    [ "$(printf '%s\n' "$GR" | awk 'END {print NR}')" = 1 ] || unsafe "service group is ambiguous" || return 77
+    [ "$(printf '%s\n' "$PW" | awk -F: 'NF==7 {print $1 ":" $3 ":" $4 ":" $6 ":" $7}')" = "$SVC_USER:$UID_M:$GID_M:$DATADIR:$SHELL_M" ] || unsafe "service account differs from marker" || return 77
+    [ "$(printf '%s\n' "$GR" | awk -F: 'NF>=3 {print $1 ":" $3}')" = "$SVC_GROUP:$GID_M" ] || unsafe "service group differs from marker" || return 77
+
+    require_dir "$CONFDIR" "0:$GID_M:750" || return 77
+    require_dir "$DATADIR" "$UID_M:$GID_M:750" || return 77
+    require_dir "$LOGDIR" "$UID_M:$GID_M:750" || return 77
+    require_file "$CONFIG" "0:$GID_M:640" || return 77
+    require_file "$ENVFILE" "0:$GID_M:640" || return 77
+    require_file "$KEYFILE" 0:0:644 || return 77
+    require_file "$command" 0:0:755 || return 77
+    require_file "$INITTARGET" 0:0:755 || return 77
+    if exists_any "$SYSTEMDTARGET"; then unsafe "foreign systemd target exists"; return 77; fi
+}
+prepare_runtime() {
+    if exists_any "$RUNDIR"; then
+        require_dir "$RUNDIR" "$UID_M:$GID_M:750" || return 77
+    else
+        checkpath --directory --owner "$SVC_USER:$SVC_GROUP" --mode 0750 "$RUNDIR" || return 77
+        require_dir "$RUNDIR" "$UID_M:$GID_M:750" || return 77
+    fi
+}
+
+start_pre() {
+    validate_contract || return 77
+    prepare_runtime || return 77
+    set -a
+    . "$ENVFILE"
+    set +a
+}
+
+stop_pre() {
+    retry="SIGTERM/120/SIGKILL/5"
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Agent Workflow Platform health probe every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

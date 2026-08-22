@@ -1,0 +1,28 @@
+cloud_url: http://127.0.0.1:8100
+# api_key is needed only for first registration. Prefer AWP_API_KEY at runtime.
+api_key:
+# Optional explicit override. Successful registration is persisted under
+# <work_dir>/state/agent.token; this YAML file is never modified.
+agent_token:
+# Dedicated private root. Its final path must be absent on first start or
+# already carry the exact worker-owned marker from a prior start.
+work_dir: ./var/worker-agent
+poll_interval: 2
+max_concurrent: 2
+log_level: INFO
+# Task execution remains disabled unless the worker host process has the exact
+# AWP_TRUSTED_TASK_EXECUTION_OPT_IN=1 setting. Use only for one trusted operator;
+# untrusted tasks require an isolated container/OS identity without credentials.
+runner:
+  # Basenames only. Each available entry is resolved to a fixed absolute path.
+  allowed_commands:
+    - python
+    - python3
+    - node
+    - bash
+    - sh
+  # Safe payload env keys may be listed; control/proxy/credential names are forbidden.
+  allowed_env_keys: []
+  timeout_seconds: 3600
+  max_output_bytes: 1048576
+  keep_workdirs: false

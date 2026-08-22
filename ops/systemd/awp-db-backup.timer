@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up Agent Workflow Platform SQLite database daily
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

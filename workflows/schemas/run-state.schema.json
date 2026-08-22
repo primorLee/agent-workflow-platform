@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agent-workflow-platform/run-state.schema.json",
+  "title": "Agent Workflow Platform run state",
+  "type": "object",
+  "required": ["schema_version", "session", "checkpoint", "backlog", "batches", "progress"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "session": {
+      "type": "object",
+      "required": ["id", "status", "mode", "started_at", "last_heartbeat"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "status": {"enum": ["idle", "active", "paused", "ended", "completed"]},
+        "mode": {"type": ["string", "null"]},
+        "started_at": {"type": ["string", "null"], "format": "date-time"},
+        "last_heartbeat": {"type": ["string", "null"], "format": "date-time"},
+        "ended_at": {"type": ["string", "null"], "format": "date-time"}
+      },
+      "additionalProperties": true
+    },
+    "checkpoint": {
+      "type": "object",
+      "required": ["resumable"],
+      "properties": {
+        "resumable": {"type": "boolean"},
+        "resume_instruction": {"type": "string"},
+        "saved_at": {"type": ["string", "null"], "format": "date-time"},
+        "context_files": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "current_task": {
+      "type": ["object", "null"],
+      "properties": {
+        "id": {"type": "string"},
+        "description": {"type": "string"},
+        "subtasks": {"type": "array", "items": {"type": "string"}},
+        "completed_subtasks": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "backlog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "priority", "status", "created_at"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^T-[0-9]{3,}$"},
+          "description": {"type": "string", "minLength": 1},
+          "priority": {"type": "integer", "minimum": 1, "maximum": 9},
+          "status": {"enum": ["pending", "in_progress", "done", "failed", "deferred"]},
+          "created_at": {"type": "string", "format": "date-time"},
+          "completed_at": {"type": ["string", "null"], "format": "date-time"},
+          "depends": {"type": "array", "items": {"type": "string"}},
+          "group": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "batches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "task_ids"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^B-[0-9]{3,}$"},
+          "status": {"enum": ["active", "completed", "failed"]},
+          "task_ids": {"type": "array", "items": {"type": "string"}},
+          "completed_task_ids": {"type": "array", "items": {"type": "string"}},
+          "failed_task_ids": {"type": "array", "items": {"type": "string"}},
+          "started_at": {"type": "string", "format": "date-time"},
+          "completed_at": {"type": ["string", "null"], "format": "date-time"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "progress": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": true
+}

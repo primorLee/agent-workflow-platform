@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/mode.schema.json",
+  "name": "daily",
+  "label": "Daily development",
+  "command": "/dev",
+  "scheduling": {
+    "parallel_agents": 3,
+    "max_agents_per_batch": 4,
+    "batch_strategy": "sequential",
+    "auto_continue": true,
+    "idle_action": "find_next_task"
+  },
+  "review": {"internal_review": false, "require_tests": true},
+  "reporting": {"checkpoint_interval_min": 30, "progress_report": false},
+  "git": {"commit_style": "descriptive", "push_after_each_task": false},
+  "guardrails": {
+    "max_retries_per_error": 3,
+    "ask_human_on": ["destructive_git", "overwrite_uncommitted", "external_side_effect"],
+    "auto_fix": ["test_failure", "merge_conflict", "missing_import"]
+  }
+}

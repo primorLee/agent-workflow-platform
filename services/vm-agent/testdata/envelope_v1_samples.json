@@ -1,0 +1,234 @@
+{
+  "description": "Reference envelope samples for Agent Protocol v1. Produced by vm-agent/internal/dialer/compat_test.go::TestGenerateCompatVectors. The Python broker side loads this file in its own test suite to verify Go<->Python wire compatibility.",
+  "spec": "internal/protocol/types.go",
+  "protocol_version": 1,
+  "samples": [
+    {
+      "name": "hello",
+      "envelope": {
+        "v": 1,
+        "type": "hello",
+        "id": "01HX8F3ABCDEFGHJKMNPQRSTVW",
+        "ts": 1713542400.123,
+        "trace_id": "0af7651916cd43dd8448eb211c80319c",
+        "span_id": "b7ad6b7169203331",
+        "payload": {
+          "agent_id": "agt_01HX8F3SAMPLEAGENTIDA",
+          "agent_version": "1.4.19+sha.deadbeef",
+          "protocol_versions": [1],
+          "min_protocol_version": 1,
+          "distro": "Ubuntu 24.04.1 LTS",
+          "distro_id": "ubuntu",
+          "distro_version": "24.04",
+          "kernel": "6.8.0-45-generic",
+          "arch": "x86_64",
+          "cpu": {"model": "Xeon Gold 6230", "cores": 20, "threads": 40},
+          "mem_kb": 134217728,
+          "runtime_version": "python-3.12",
+          "runner_version": "builtin-1",
+          "runtime_list": ["python3", "node20"],
+          "features": ["echo", "artifact_transfer", "offline_replay"],
+          "timezone": "Asia/Shanghai",
+          "boot_id": "6e4f0000-0000-0000-0000-000000000001",
+          "start_time": 1713530000.0
+        }
+      }
+    },
+    {
+      "name": "welcome",
+      "envelope": {
+        "v": 1,
+        "type": "welcome",
+        "id": "01HX8F3BBBBBBBBBBBBBBBBBBB",
+        "in_reply_to": "01HX8F3ABCDEFGHJKMNPQRSTVW",
+        "ts": 1713542400.456,
+        "payload": {
+          "server_version": "awp-control-plane 1.0.0",
+          "protocol_version": 1,
+          "min_protocol_version": 1,
+          "required_agent_version": "1.4.10",
+          "session_id": "sess_01HX8F3SESSIONSAMPLE0",
+          "session_ttl_s": 3600,
+          "feature_flags": {
+            "mtls_required": false,
+            "artifact_signed_urls": true,
+            "log_streaming": true,
+            "multi_task": true,
+            "max_concurrent_tasks": 4,
+            "transport": ["wss", "longpoll"]
+          },
+          "heartbeat_interval_s": 30,
+          "heartbeat_grace_s": 90,
+          "clock_skew_max_s": 300
+        }
+      }
+    },
+    {
+      "name": "auth.login",
+      "envelope": {
+        "v": 1,
+        "type": "auth.login",
+        "id": "01HX8F3CCCCCCCCCCCCCCCCCCC",
+        "ts": 1713542401.0,
+        "payload": {
+          "method": "agent_token",
+          "agent_token": "x",
+          "agent_id": "agt_01HX8F3SAMPLEAGENTIDA"
+        }
+      }
+    },
+    {
+      "name": "auth.session",
+      "envelope": {
+        "v": 1,
+        "type": "auth.session",
+        "id": "01HX8F3DDDDDDDDDDDDDDDDDDD",
+        "in_reply_to": "01HX8F3CCCCCCCCCCCCCCCCCCC",
+        "ts": 1713542401.1,
+        "payload": {
+          "bearer_token": "y",
+          "refresh_token": "z",
+          "not_after": 1713546000.0,
+          "tenant_id": "tenant_sample",
+          "agent_id": "agt_01HX8F3SAMPLEAGENTIDA",
+          "scopes": ["task.run", "artifact.put", "log.stream"]
+        }
+      }
+    },
+    {
+      "name": "heartbeat",
+      "envelope": {
+        "v": 1,
+        "type": "heartbeat",
+        "id": "01HX8F3EEEEEEEEEEEEEEEEEEE",
+        "ts": 1713542430.0,
+        "payload": {
+          "running_task_ids": ["task_01HX8F3TASK1"],
+          "load": {
+            "cpu_pct": 37.5,
+            "mem_used_kb": 8388608,
+            "mem_total_kb": 134217728,
+            "disk_free_kb": 512000000,
+            "task_slots_free": 3
+          },
+          "drain_requested": false,
+          "uptime_s": 3723.5
+        }
+      }
+    },
+    {
+      "name": "task.offer",
+      "envelope": {
+        "v": 1,
+        "type": "task.offer",
+        "id": "01HX8F3FFFFFFFFFFFFFFFFFFF",
+        "ts": 1713542500.0,
+        "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "span_id": "00f067aa0ba902b7",
+        "payload": {
+          "task_id": "task_01HX8F3TASK1",
+          "idempotency_key": "idem-1",
+          "tenant_id": "tenant_sample",
+          "priority": 5,
+          "submitted_at": 1713542499.0,
+          "timeout_s": 2700,
+          "execution": {
+            "runner": "echo",
+            "runtime": "python3",
+            "runtime_version": "3.12",
+            "action": "inspect",
+            "outputs": ["stdout", "report"],
+            "parameters": {"message": "hello", "retries": 1},
+            "includes": [],
+            "input": {
+              "mode": "inline",
+              "inline": "synthetic input sample\n",
+              "artifact": null
+            },
+            "options": {"format": "plain"}
+          },
+          "constraints": {"min_mem_kb": 4194304, "min_disk_kb": 1048576},
+          "trace": {"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "parent_span_id": "00f067aa0ba902b7"}
+        }
+      }
+    },
+    {
+      "name": "task.accept",
+      "envelope": {
+        "v": 1,
+        "type": "task.accept",
+        "id": "01HX8F3GGGGGGGGGGGGGGGGGGG",
+        "ts": 1713542500.5,
+        "payload": {"task_id": "task_01HX8F3TASK1", "accepted_at": 1713542500.5}
+      }
+    },
+    {
+      "name": "task.progress",
+      "envelope": {
+        "v": 1,
+        "type": "task.progress",
+        "id": "01HX8F3HHHHHHHHHHHHHHHHHHH",
+        "ts": 1713542550.0,
+        "payload": {
+          "task_id": "task_01HX8F3TASK1",
+          "seq": 7,
+          "percent": 23,
+          "phase": "running",
+          "note": "iter=14"
+        }
+      }
+    },
+    {
+      "name": "task.complete",
+      "envelope": {
+        "v": 1,
+        "type": "task.complete",
+        "id": "01HX8F3JJJJJJJJJJJJJJJJJJJ",
+        "ts": 1713542700.0,
+        "payload": {
+          "task_id": "task_01HX8F3TASK1",
+          "status": "success",
+          "metrics": {"duration_ms": 200000, "items_processed": 42},
+          "duration_s": 200.0,
+          "artifacts": [],
+          "completed_at": 1713542700.0
+        }
+      }
+    },
+    {
+      "name": "ack",
+      "envelope": {
+        "v": 1,
+        "type": "ack",
+        "id": "01HX8F3KKKKKKKKKKKKKKKKKKK",
+        "ts": 1713542500.1,
+        "payload": {"for_id": "01HX8F3FFFFFFFFFFFFFFFFFFF"}
+      }
+    },
+    {
+      "name": "error",
+      "envelope": {
+        "v": 1,
+        "type": "err.auth.invalid_credentials",
+        "id": "01HX8F3LLLLLLLLLLLLLLLLLLL",
+        "ts": 1713542405.0,
+        "payload": {
+          "code": "err.auth.invalid_credentials",
+          "message": "token expired",
+          "retryable": false,
+          "retry_after_s": null
+        }
+      }
+    },
+    {
+      "name": "bye",
+      "envelope": {
+        "v": 1,
+        "type": "bye",
+        "id": "01HX8F3MMMMMMMMMMMMMMMMMMM",
+        "ts": 1713546000.0,
+        "payload": {"reason": "agent_shutdown"}
+      }
+    }
+  ]
+}

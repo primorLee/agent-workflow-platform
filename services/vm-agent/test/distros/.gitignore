@@ -1,0 +1,6 @@
+logs/
+releases/
+test-keys/gnupg-test/
+test-keys/awp-vm-agent-signing.asc
+test-keys/*.key
+test-keys/*.gpg

@@ -1,0 +1,34 @@
+{
+  "$schema": "../schemas/mode.schema.json",
+  "name": "research",
+  "label": "Evidence-driven research",
+  "command": "/research",
+  "scheduling": {
+    "parallel_agents": 8,
+    "max_agents_per_batch": 8,
+    "batch_strategy": "explore_then_review",
+    "phases": [
+      {"name": "explore", "agents": 5, "description": "Independent search directions"},
+      {"name": "critique", "agents": 2, "description": "Blind adversarial review"},
+      {"name": "synthesize", "agents": 1, "description": "Evidence-grounded decision"}
+    ],
+    "auto_continue": true,
+    "idle_action": "next_phase",
+    "phase_checkpoint": true,
+    "reread_command_each_phase": true
+  },
+  "review": {
+    "internal_review": true,
+    "writer_critic_final_reviewer": true,
+    "minimum_score": 7,
+    "max_rework_rounds": 2,
+    "scoring": "minimum_of_critics"
+  },
+  "reporting": {"checkpoint_interval_min": 30, "full_report_on_complete": true},
+  "guardrails": {
+    "min_approaches_before_converge": 5,
+    "require_falsification_criteria": true,
+    "failed_trial_kills_approach": false,
+    "failed_trial_max_retries": 3
+  }
+}

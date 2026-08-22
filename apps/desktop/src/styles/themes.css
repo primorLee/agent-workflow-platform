@@ -1,0 +1,284 @@
+/*
+ * themes.css -- Dark / Light theme variables
+ *
+ * Usage: components must reference var(--xxx) instead of hardcoded hex.
+ * The active theme is set via data-theme attribute on <html>.
+ * Default (no attribute or data-theme="dark") = dark theme.
+ */
+
+:root,
+[data-theme="dark"] {
+  /* Backgrounds — professional dark, no pure black */
+  --bg-primary: #14161a;
+  --bg-secondary: #171a1f;
+  --bg-surface: #20252b;
+  --bg-elevated: #252b32;
+  --bg-hover: #2a3139;
+  --bg-terminal: #14161a;
+  --bg-canvas: #14161a;
+  --bg-overlay: rgba(0, 0, 0, 0.72);
+  --bg-tertiary: #1b1f24;
+  --app-gradient-end: #14161a;
+  --surface-halo: transparent;
+  --shell-top-sheen: transparent;
+  --shell-corner-sheen: transparent;
+  --sidebar-top-sheen: transparent;
+  --glass-bg: #20252b;
+  --glass-bg-strong: #252b32;
+  --glass-bg-soft: #1b1f24;
+  --glass-border: #2e343c;
+  --glass-border-strong: #3a414a;
+  --sidebar-bg: #171a1f;
+  --sidebar-surface: #1b1f24;
+  --sidebar-hover: #252b32;
+  --sidebar-active-bg: #2a3139;
+  --sidebar-active-border: #3a414a;
+  --sidebar-button-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --panel-header-bg: #1b1f24;
+  --panel-header-strong-bg: #171a1f;
+  --panel-footer-bg: #14161a;
+  --panel-overlay-scrim: rgba(0, 0, 0, 0.6);
+  --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --code-surface: #1b1f24;
+  --inline-code-bg: #252b32;
+  --track-bg: #252b32;
+  --chip-bg: #252b32;
+  --chip-border: #3a414a;
+  --chip-text: #a0a8b3;
+  --avatar-bg: #252b32;
+  --avatar-border: #3a414a;
+  --panel-tab-active-bg: #2a3139;
+  --panel-tab-active-border: #3a414a;
+  --canvas-accent: #252b32;
+  --primary-button-bg: #f3f4f6;
+  --primary-button-hover: #ffffff;
+  --primary-button-text: #171717;
+  --primary-button-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --error-icon: #ef4444;
+  --error-text-soft: #fca5a5;
+  --error-bg-soft: rgba(239, 68, 68, 0.1);
+  --error-border-soft: rgba(239, 68, 68, 0.2);
+
+  /* Text — warm neutral on dark */
+  --text-primary: #f3f4f6;
+  --text-secondary: #a0a8b3;
+  --text-tertiary: #7f8792;
+  --text-muted: #7f8792;
+  --text-placeholder: #5a6270;
+  --border-soft: #252b32;
+  --icon-muted: #a0a8b3;
+  --success: #22C55E;
+  --text-on-accent: #171717;
+  --text-on-surface: #a0a8b3;
+  --text-bright: #ffffff;
+  --text-dim: #a0a8b3;
+
+  /* Message colors */
+  --msg-user-bg: #20252b;
+  --msg-user-text: #f3f4f6;
+  --msg-ai-title: #f3f4f6;
+  --msg-ai-text: #a0a8b3;
+
+  /* Borders — cool gray */
+  --border: #2e343c;
+  --border-strong: #3a414a;
+  --border-subtle: #252b32;
+  --input-border: #2e343c;
+
+  /* Accent — muted steel, no green/mint/cyan/purple */
+  --accent: #8b96a7;
+  --accent-hover: #a0a8b3;
+  --accent-dim: rgba(139, 150, 167, 0.12);
+  --accent-rgb: 139, 150, 167;
+  --accent-blue: #8b96a7;
+  --accent-blue-hover: #a0a8b3;
+
+  /* Status */
+  --success: #57d18c;
+  --danger: #ff6b6b;
+  --error: #ff6b6b;
+  --warning: #f6b454;
+  --info: #8b96a7;
+  --success-bg: rgba(87, 209, 140, 0.12);
+  --danger-bg: rgba(255, 107, 107, 0.12);
+  --warning-bg: rgba(246, 180, 84, 0.12);
+  --info-bg: rgba(139, 150, 167, 0.12);
+
+  /* Syntax highlighting */
+  --syntax-comment: #6a9955;
+  --syntax-string: #ce9178;
+  --syntax-keyword: #569cd6;
+
+  /* Chart / canvas */
+  --canvas-bg: #14161a;
+  --canvas-grid: #2e343c;
+  --canvas-label: #7f8792;
+  --canvas-axis-label: #a0a8b3;
+  --canvas-title: #f3f4f6;
+
+
+  /* Layout */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-panel: 22px;
+  --radius-control: 12px;
+  --radius-bubble: 18px;
+  --radius-pill: 999px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.22);
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei UI', sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 56px;
+  --sidebar-width: 248px;
+  --header-height: 52px;
+  --statusbar-height: 28px;
+
+  /* Product design tokens (v1.7 UI refresh) — callable in both themes */
+  --app-bg: var(--bg-primary);
+  --panel-bg: var(--bg-surface);
+  --panel-soft: var(--bg-tertiary);
+  --panel-blue-soft: #2a3139;
+  --primary: #6b8afe;
+  --primary-hover: #84a1ff;
+  --primary-soft: rgba(107, 138, 254, 0.14);
+  --on-primary: #ffffff;
+}
+
+[data-theme="light"] {
+  /* Backgrounds — cool blue-gray workstation (v1.7 UI refresh 2nd pass) */
+  --bg-primary: #F5F7FB;
+  --bg-secondary: #EEF1F7;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: #F7F9FD;
+  --bg-terminal: #F8FAFC;
+  --bg-canvas: #FFFFFF;
+  --bg-overlay: rgba(245, 247, 251, 0.85);
+  --bg-tertiary: #F8FAFC;
+  --app-gradient-end: #F5F7FB;
+  --surface-halo: transparent;
+  --shell-top-sheen: transparent;
+  --shell-corner-sheen: transparent;
+  --sidebar-top-sheen: transparent;
+  --glass-bg: #FFFFFF;
+  --glass-bg-strong: #FFFFFF;
+  --glass-bg-soft: #F8FAFC;
+  --glass-border: #E7EBF3;
+  --glass-border-strong: #D8DEEB;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-surface: #FFFFFF;
+  --sidebar-hover: #F1F4FA;
+  --sidebar-active-bg: #EEF3FF;
+  --sidebar-active-border: #D6E0FF;
+  --sidebar-button-shadow: none;
+  --panel-header-bg: #FFFFFF;
+  --panel-header-strong-bg: #F8FAFC;
+  --panel-footer-bg: #F8FAFC;
+  --panel-overlay-scrim: rgba(245, 247, 251, 0.85);
+  --panel-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --code-surface: #F8FAFC;
+  --inline-code-bg: #F1F4FA;
+  --track-bg: #E7EBF3;
+  --chip-bg: #F1F4FA;
+  --chip-border: #E7EBF3;
+  --chip-text: #5A6478;
+  --avatar-bg: #F1F4FA;
+  --avatar-border: #E7EBF3;
+  --panel-tab-active-bg: #FFFFFF;
+  --panel-tab-active-border: #D6E0FF;
+  --canvas-accent: transparent;
+  --primary-button-bg: #4C6FFF;
+  --primary-button-hover: #3F61F0;
+  --primary-button-text: #FFFFFF;
+  --primary-button-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --error-icon: #d93025;
+  --error-text-soft: #c24141;
+  --error-bg-soft: rgba(217, 48, 37, 0.06);
+  --error-border-soft: rgba(217, 48, 37, 0.12);
+
+  /* Text — calm slate, high-contrast without pure black */
+  --text-primary: #1F2937;
+  --text-secondary: #8B95A7;
+  --text-tertiary: #AAB3C2;
+  --text-muted: #8B95A7;
+  --text-placeholder: #AAB3C2;
+  --text-on-accent: #FFFFFF;
+  --text-on-surface: #8B95A7;
+  --text-bright: #1F2937;
+  --text-dim: #8B95A7;
+
+  --icon-muted: #7C8798;
+
+  /* Message colors */
+  --msg-user-bg: #EEF3FF;
+  --msg-user-text: #1F2937;
+  --msg-ai-title: #1F2937;
+  --msg-ai-text: #1F2937;
+
+  /* Borders — cool blue-gray 1px hairline (v1.7 spec 2nd pass) */
+  --border: #E6EBF2;
+  --border-strong: #D8DEEB;
+  --border-subtle: #EDF1F7;
+  --border-soft: #EDF1F7;
+  --input-border: #E6EBF2;
+
+  /* Accent — keep for legacy refs, alias to primary blue */
+  --accent: #5B7BEA;
+  --accent-hover: #4D6FE2;
+  --accent-dim: rgba(91, 123, 234, 0.10);
+  --accent-rgb: 91, 123, 234;
+  --accent-blue: #5B7BEA;
+  --accent-blue-hover: #4D6FE2;
+
+  /* Status */
+  --success: #2b9a5e;
+  --danger: #d93025;
+  --error: #d93025;
+  --warning: #c68a1a;
+  --info: #7b8798;
+  --success-bg: rgba(43, 154, 94, 0.08);
+  --danger-bg: rgba(217, 48, 37, 0.08);
+  --warning-bg: rgba(198, 138, 26, 0.08);
+  --info-bg: rgba(123, 135, 152, 0.08);
+
+  /* Syntax highlighting */
+  --syntax-comment: #008000;
+  --syntax-string: #a31515;
+  --syntax-keyword: #0000ff;
+
+  /* Chart / canvas */
+  --canvas-bg: #faf9f6;
+  --canvas-grid: #e3e1db;
+  --canvas-label: #969cab;
+  --canvas-axis-label: #6f7480;
+  --canvas-title: #1f1f1f;
+
+
+  /* Shadow — very subtle */
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-control: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  /* Product design tokens (v1.7 UI refresh 2nd pass per maintainer precise spec) */
+  --app-bg: #F5F7FB;
+  --panel-bg: #FFFFFF;
+  --panel-soft: #F8FAFC;
+  --panel-blue-soft: #EEF3FF;
+  --primary: #5B7BEA;
+  --primary-hover: #4D6FE2;
+  --primary-soft: #EAF0FF;
+  --on-primary: #FFFFFF;
+  --success: #22C55E;
+
+  --radius-bubble: 18px;
+  --radius-pill: 999px;
+}

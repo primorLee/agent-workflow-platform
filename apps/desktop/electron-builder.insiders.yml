@@ -1,0 +1,32 @@
+# Electron Builder overrides for the opt-in Insiders channel.
+productName: Agent Workflow Platform Insiders
+appId: io.github.primorlee.agentworkflow.insiders
+directories:
+  output: build-insiders
+  buildResources: resources
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - dist-awp-cloud-mcp/**
+asarUnpack:
+  - dist-electron/electron/services/awp-cloud-mcp/**
+  - dist-awp-cloud-mcp/**
+extraResources:
+  - from: runtime
+    to: runtime
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Agent Workflow Platform Insiders
+  artifactName: agent-workflow-platform-insiders-${version}.${ext}

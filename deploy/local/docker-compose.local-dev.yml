@@ -1,0 +1,117 @@
+name: agent-workflow-platform
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+x-control-plane-image: &control-plane-image
+  build:
+    context: ../../services/control-plane
+    dockerfile: Dockerfile
+
+services:
+  auth-bootstrap:
+    <<: *control-plane-image
+    environment:
+      AWP_LOCAL_DEMO_AUTH_BOOTSTRAP: "1"
+    command: ["python", "cloud/local_demo_auth.py"]
+    volumes:
+      - local-auth:/run/awp-auth
+    restart: "no"
+    logging: *default-logging
+
+  control-plane:
+    <<: *control-plane-image
+    environment:
+      AWP_ENV: local-container
+      AWP_HOST: 127.0.0.1
+      AWP_PORT: "8100"
+      AWP_DATA_DIR: /app/var
+      AWP_DATABASE_URL: /app/var/awp.db
+      AWP_DATA_ROOT_BOOTSTRAP: "1"
+      AWP_DEV_API_KEY_FILE: /run/awp-auth/control-plane.key
+      AWP_REDIS_URL: redis://redis:6379/0
+      AWP_WS_BROKER: redis
+      AWP_PROMETHEUS_ENABLED: "1"
+      AWP_METRICS_ALLOW_IPS: "*"
+    ports:
+      - "127.0.0.1:8100:18100"
+    volumes:
+      - control-plane-data:/app/var
+      - local-auth:/run/awp-auth:ro
+    depends_on:
+      auth-bootstrap:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/v1/health/ready', timeout=3).read()"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+    logging: *default-logging
+
+  loopback-gateway:
+    image: haproxy:3.0-alpine
+    network_mode: "service:control-plane"
+    volumes:
+      - ./haproxy.local.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  worker-agent:
+    # Reuse the control-plane network namespace so strict loopback-only HTTP
+    # remains true inside the local demo stack.
+    network_mode: "service:control-plane"
+    build:
+      context: ../../services/worker-agent
+      dockerfile: Dockerfile
+    environment:
+      AWP_URL: http://127.0.0.1:8100
+      AWP_WORK_DIR: /state/work
+      AWP_TRUSTED_TASK_EXECUTION_OPT_IN: "1"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        key_file=/run/awp-auth/control-plane.key
+        test -r "$$key_file"
+        AWP_API_KEY="$$(tr -d '\r\n' < "$$key_file")"
+        export AWP_API_KEY
+        if [ ! -f /state/agent.yaml ]; then cp /worker/agent.yaml.example /state/agent.yaml; fi
+        exec python /worker/agent.py --config /state/agent.yaml
+    volumes:
+      - worker-state:/state
+      - local-auth:/run/awp-auth:ro
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  control-plane-data:
+  worker-state:
+  redis-data:
+  local-auth:

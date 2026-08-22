@@ -1,0 +1,47 @@
+[Unit]
+Description=Agent Workflow Platform VM Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=awp-vm-agent
+Group=awp-vm-agent
+ExecStart=/usr/local/bin/awp-vm-agent --daemon --config /etc/awp-vm-agent/config.yaml
+EnvironmentFile=/etc/awp-vm-agent/agent.env
+
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=77
+TimeoutStopSec=120
+KillSignal=SIGTERM
+KillMode=mixed
+UMask=0027
+
+# Baseline hardening for the checked-in echo adapter. Review these settings
+# before enabling an adapter that needs devices, additional paths, or JIT code.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/awp-vm-agent /var/log/awp-vm-agent
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=65536
+SyslogIdentifier=awp-vm-agent
+
+[Install]
+WantedBy=multi-user.target

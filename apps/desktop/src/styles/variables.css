@@ -1,0 +1,5 @@
+/*
+ * variables.css — Re-exports theme variables + layout constants.
+ * All color variables are defined in themes.css.
+ */
+@import './themes.css';

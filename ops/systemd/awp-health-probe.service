@@ -1,0 +1,18 @@
+[Unit]
+Description=Agent Workflow Platform health probe
+After=awp-control-plane.service
+
+[Service]
+Type=oneshot
+User=awp
+Group=awp
+WorkingDirectory=/opt/agent-workflow-platform
+EnvironmentFile=-/etc/awp/health-probe.env
+Environment=AWP_PROBE_BASE_URL=http://127.0.0.1:8100
+ExecStart=/opt/agent-workflow-platform/.venv/bin/python /opt/agent-workflow-platform/ops/monitoring/health_probe.py --once
+StateDirectory=awp
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agent-workflow-platform/mode.schema.json",
+  "title": "Agent Workflow Platform mode",
+  "type": "object",
+  "required": ["name", "label", "command", "scheduling", "guardrails"],
+  "properties": {
+    "$schema": {"const": "../schemas/mode.schema.json"},
+    "name": {"type": "string"},
+    "label": {"type": "string"},
+    "command": {"type": "string", "pattern": "^/"},
+    "scheduling": {"type": "object"},
+    "review": {"type": "object"},
+    "reporting": {"type": "object"},
+    "git": {"type": "object"},
+    "guardrails": {"type": "object"}
+  },
+  "additionalProperties": false
+}

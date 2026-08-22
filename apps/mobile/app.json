@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Agent Workflow Platform",
+    "slug": "agent-workflow-platform-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "agentworkflow",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.github.primorlee.agentworkflow.mobile"
+    },
+    "android": {
+      "package": "io.github.primorlee.agentworkflow.mobile",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "color": "#0B1220"
+        }
+      ],
+      "expo-background-task"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

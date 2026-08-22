@@ -1,0 +1,18 @@
+[Unit]
+Description=Back up Agent Workflow Platform SQLite database
+After=awp-control-plane.service
+
+[Service]
+Type=oneshot
+User=awp
+Group=awp
+WorkingDirectory=/opt/agent-workflow-platform
+EnvironmentFile=-/etc/awp/backup.env
+ExecStart=/opt/agent-workflow-platform/.venv/bin/python /opt/agent-workflow-platform/ops/backup/sqlite_backup.py /var/lib/awp/awp.db /var/backups/awp --retention 7
+ReadWritePaths=/var/backups/awp
+StateDirectory=awp
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

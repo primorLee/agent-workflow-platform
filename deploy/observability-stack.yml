@@ -1,0 +1,46 @@
+name: awp-observability
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.listen-address=127.0.0.1:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts/awp.yml:/etc/prometheus/alerts/awp.yml:ro
+      - prometheus-data:/prometheus
+    secrets:
+      - awp_metrics_bearer_token
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    network_mode: host
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SERVER_HTTP_PORT: "3000"
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+secrets:
+  awp_metrics_bearer_token:
+    file: "${AWP_METRICS_BEARER_TOKEN_FILE:?set AWP_METRICS_BEARER_TOKEN_FILE to a private token file}"
+  grafana_admin_password:
+    file: "${AWP_GRAFANA_ADMIN_PASSWORD_FILE:?set AWP_GRAFANA_ADMIN_PASSWORD_FILE to a private password file}"

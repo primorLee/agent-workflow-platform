@@ -1,0 +1,72 @@
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-primary: #0b1020;
+  --bg-panel: #121a2d;
+  --bg-surface: #172138;
+  --bg-hover: #1d2a45;
+  --bg-code: #090e19;
+  --topbar-bg: rgb(11 16 32 / 88%);
+  --text-primary: #eef3ff;
+  --text-secondary: #b8c3d9;
+  --text-muted: #77849d;
+  --code-text: #c7d5f2;
+  --border: #24314a;
+  --border-soft: #1d2940;
+  --border-strong: #394a69;
+  --input-border: #31415f;
+  --accent: #6f7dff;
+  --accent-hover: #5d6cef;
+  --accent-dim: rgb(111 125 255 / 13%);
+  --accent-glow: rgb(91 108 255 / 16%);
+  --accent-shadow: rgb(65 80 221 / 28%);
+  --success: #44d59b;
+  --success-bg: rgb(68 213 155 / 12%);
+  --success-glow: rgb(68 213 155 / 8%);
+  --warning: #f3b54a;
+  --warning-bg: rgb(243 181 74 / 12%);
+  --danger: #ff7884;
+  --danger-bg: rgb(255 120 132 / 11%);
+  --danger-border: rgb(255 120 132 / 32%);
+  --info: #74a8ff;
+  --info-bg: rgb(116 168 255 / 13%);
+  --shadow-sm: 0 8px 24px rgb(0 0 0 / 12%);
+  --shadow-lg: 0 30px 80px rgb(0 0 0 / 28%);
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg-primary: #f3f6fb;
+  --bg-panel: #ffffff;
+  --bg-surface: #f7f9fc;
+  --bg-hover: #edf1f8;
+  --bg-code: #f3f6fb;
+  --topbar-bg: rgb(255 255 255 / 88%);
+  --text-primary: #172033;
+  --text-secondary: #4c5a71;
+  --text-muted: #7c899e;
+  --code-text: #2f405e;
+  --border: #dce3ee;
+  --border-soft: #e9eef5;
+  --border-strong: #bdc9d9;
+  --input-border: #c9d3e1;
+  --accent: #5364e8;
+  --accent-hover: #4354d4;
+  --accent-dim: rgb(83 100 232 / 10%);
+  --accent-glow: rgb(83 100 232 / 11%);
+  --accent-shadow: rgb(83 100 232 / 20%);
+  --success: #12865e;
+  --success-bg: rgb(18 134 94 / 9%);
+  --success-glow: rgb(18 134 94 / 7%);
+  --warning: #a76308;
+  --warning-bg: rgb(167 99 8 / 9%);
+  --danger: #c53d4a;
+  --danger-bg: rgb(197 61 74 / 8%);
+  --danger-border: rgb(197 61 74 / 24%);
+  --info: #356bc3;
+  --info-bg: rgb(53 107 195 / 9%);
+  --shadow-sm: 0 8px 24px rgb(40 55 85 / 6%);
+  --shadow-lg: 0 30px 80px rgb(40 55 85 / 14%);
+}

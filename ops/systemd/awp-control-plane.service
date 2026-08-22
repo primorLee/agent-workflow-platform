@@ -1,0 +1,36 @@
+[Unit]
+Description=Agent Workflow Platform control plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=awp
+Group=awp
+WorkingDirectory=/opt/agent-workflow-platform
+EnvironmentFile=/etc/awp/control-plane.env
+Environment=AWP_DATA_DIR=/var/lib/awp
+Environment=AWP_DATA_ROOT_BOOTSTRAP=1
+ExecStart=/opt/agent-workflow-platform/.venv/bin/python -m uvicorn server:app --app-dir /opt/agent-workflow-platform/services/control-plane/cloud --host 127.0.0.1 --port 8100
+Restart=on-failure
+RestartSec=3
+RestartPreventExitStatus=77
+TimeoutStopSec=35
+KillSignal=SIGTERM
+StateDirectory=awp
+StateDirectoryMode=0700
+RuntimeDirectory=awp
+LogsDirectory=awp
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

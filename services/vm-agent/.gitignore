@@ -1,0 +1,25 @@
+# Build output
+/dist/
+/bin/
+
+# Go
+*.test
+*.out
+coverage.*
+vendor/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config (never commit secrets)
+config.yaml
+agent.env
+*.key
+*.pem

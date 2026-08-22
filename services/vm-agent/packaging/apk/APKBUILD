@@ -1,0 +1,28 @@
+# Contributor: Agent Workflow Platform <support@example.invalid>
+# Maintainer: Agent Workflow Platform <support@example.invalid>
+#
+# Source-preview structure only. No signed binary/tag is published, so abuild
+# must fail before it stages files. Keep this composition for review only.
+
+pkgname=awp-vm-agent
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="Agent Workflow Platform outbound WebSocket worker"
+url="https://github.com/primorLee/agent-workflow-platform"
+arch="x86_64 aarch64"
+license="MIT"
+depends="ca-certificates"
+install="$pkgname.pre-install $pkgname.post-install $pkgname.pre-deinstall"
+subpackages="$pkgname-openrc"
+source=""
+options="!check !strip"
+
+preview_block() {
+    printf '%s\n' 'awp-vm-agent APK build is unsupported in this source preview until a signed release is published' >&2
+    return 77
+}
+
+prepare() { preview_block; }
+build() { preview_block; }
+package() { preview_block; }
+openrc() { preview_block; }

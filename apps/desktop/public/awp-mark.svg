@@ -1,0 +1,7 @@
+<svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <rect width="160" height="160" rx="28" fill="#0f172a"/>
+  <path d="M38 48h34v24H38zM88 88h34v24H88zM38 112h34v24H38z" fill="#e2e8f0"/>
+  <path d="M72 60h16v40H72M72 124h16v-24" stroke="#38bdf8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="88" cy="100" r="8" fill="#22c55e"/>
+  <title>Agent Workflow Platform</title>
+</svg>

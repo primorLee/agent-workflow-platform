@@ -1,0 +1,16 @@
+# Agent Workflow Platform VM Agent source-preview configuration template.
+# Package installation is disabled until a signed release is published.
+# Manual install.sh writes the live configuration atomically.
+# Credentials belong only in /etc/awp-vm-agent/agent.env with mode 0640
+# and owner root:awp-vm-agent; never place them on a command line.
+
+# Plain ws:// is accepted only for localhost or a loopback IP literal.
+# Use wss:// for every non-loopback broker.
+server_url: ws://127.0.0.1:8100/agent/connect
+agent_name: CHANGE_ME_TO_HOSTNAME
+work_dir: /var/lib/awp-vm-agent
+log_file: /var/log/awp-vm-agent/awp-vm-agent.log
+log_level: info
+max_concurrent_tasks: 2
+heartbeat_interval: 15s
+shutdown_timeout: 60s

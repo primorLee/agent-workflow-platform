@@ -1,0 +1,3 @@
+#!/bin/sh
+printf '%s\n' 'awp-vm-agent Debian package lifecycle is unsupported in this source preview until a signed release is published' >&2
+exit 77

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist-electron",
+    // rootDir intentionally set to "." (not "electron") so preload.ts can
+    // `import type { DesktopElectronApi } from '../src/types/adr012'` —
+    // the renderer-owned ADR-012 T-A041 shared contract. Files under src/
+    // are type-only imports (never `import` at runtime from electron/)
+    // and are excluded from emit via the `exclude` list below. Keeping
+    // rootDir narrow triggers TS6059 on the src/ import even for
+    // type-only imports.
+    "rootDir": ".",
+    "declaration": false,
+    "sourceMap": false,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["electron/**/*.ts"],
+  "exclude": ["node_modules", "electron/**/__tests__/**", "electron/**/*.spec.ts"]
+}

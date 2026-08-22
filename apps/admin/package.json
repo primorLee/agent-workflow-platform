@@ -1,0 +1,32 @@
+{
+  "name": "agent-workflow-platform-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/api/normalizers.test.ts",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "verify": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "pinia": "^2.3.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.4.3",
+    "vue-tsc": "^2.2.0"
+  },
+  "overrides": {
+    "brace-expansion": "2.1.4"
+  }
+}

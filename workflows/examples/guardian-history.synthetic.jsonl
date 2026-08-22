@@ -1,0 +1,3 @@
+{"timestamp":"2030-01-02T09:05:00Z","event":"health_check","healthy":true,"message":"heartbeat is fresh (30 seconds)","heartbeat_age_seconds":30,"session_status":"active","session_mode":"daily","backlog_pending":1}
+{"timestamp":"2030-01-02T09:50:00Z","event":"health_check","healthy":false,"message":"heartbeat is stale by 2730 seconds","heartbeat_age_seconds":2730,"session_status":"active","session_mode":"daily","backlog_pending":1}
+{"timestamp":"2030-01-02T10:00:00Z","event":"stalled_session","consecutive_failures":3}

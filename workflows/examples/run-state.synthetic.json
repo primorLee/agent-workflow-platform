@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "session": {
+    "id": "demo-session-001",
+    "status": "active",
+    "mode": "daily",
+    "started_at": "2030-01-02T09:00:00Z",
+    "last_heartbeat": "2030-01-02T09:12:00Z",
+    "ended_at": null
+  },
+  "checkpoint": {
+    "resumable": true,
+    "resume_instruction": "Resume the parser regression after verifying the failing fixture.",
+    "saved_at": "2030-01-02T09:10:00Z",
+    "context_files": ["src/parser.py", "tests/test_parser.py"]
+  },
+  "current_task": {
+    "id": "T-002",
+    "description": "Fix the parser regression",
+    "subtasks": ["reproduce", "patch", "verify"],
+    "completed_subtasks": ["reproduce"]
+  },
+  "backlog": [
+    {
+      "id": "T-001",
+      "description": "Add a deterministic regression fixture",
+      "priority": 1,
+      "status": "done",
+      "created_at": "2030-01-02T08:30:00Z",
+      "completed_at": "2030-01-02T08:55:00Z",
+      "group": "parser"
+    },
+    {
+      "id": "T-002",
+      "description": "Fix the parser regression",
+      "priority": 1,
+      "status": "in_progress",
+      "created_at": "2030-01-02T08:35:00Z",
+      "depends": ["T-001"],
+      "group": "parser"
+    }
+  ],
+  "batches": [
+    {
+      "id": "B-001",
+      "status": "active",
+      "started_at": "2030-01-02T09:00:00Z",
+      "task_ids": ["T-002"],
+      "completed_task_ids": [],
+      "failed_task_ids": []
+    }
+  ],
+  "progress": {
+    "tasks_completed_this_session": 1,
+    "batches_completed_this_session": 0,
+    "last_commit": "demo000"
+  }
+}

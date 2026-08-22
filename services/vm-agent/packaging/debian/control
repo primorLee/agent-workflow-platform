@@ -1,0 +1,14 @@
+Package: awp-vm-agent
+Version: 0.1.0
+Section: admin
+Priority: optional
+Architecture: amd64
+Depends: ca-certificates, adduser
+Recommends: gnupg
+Maintainer: Agent Workflow Platform <support@example.invalid>
+Homepage: https://github.com/primorLee/agent-workflow-platform
+Description: Agent Workflow Platform outbound WebSocket worker
+ The VM agent dials an Agent Workflow Platform control plane, authenticates,
+ receives generic task envelopes, supervises allowlisted child processes, and
+ streams progress and logs. This package structure is review-only; its lifecycle
+ hooks exit 77 until a signed release is published.

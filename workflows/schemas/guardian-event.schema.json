@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agent-workflow-platform/guardian-event.schema.json",
+  "title": "Agent Workflow Platform guardian event",
+  "type": "object",
+  "required": ["timestamp", "event"],
+  "properties": {
+    "timestamp": {"type": "string", "format": "date-time"},
+    "event": {"enum": ["health_check", "stalled_session", "guardian_error", "shutdown"]},
+    "healthy": {"type": "boolean"},
+    "message": {"type": "string"},
+    "heartbeat_age_seconds": {"type": ["number", "null"], "minimum": 0},
+    "session_status": {"type": "string"},
+    "session_mode": {"type": ["string", "null"]},
+    "backlog_pending": {"type": "integer", "minimum": 0},
+    "consecutive_failures": {"type": "integer", "minimum": 0},
+    "reason": {"type": "string"},
+    "error_type": {"type": "string"}
+  },
+  "additionalProperties": false
+}

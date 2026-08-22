@@ -1,0 +1,24 @@
+groups:
+  - name: awp-control-plane
+    rules:
+      - alert: AWPControlPlaneDown
+        expr: up{job="awp-control-plane"} == 0 or absent(up{job="awp-control-plane"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Agent Workflow Platform control plane is unreachable
+      - alert: AWPControlPlaneHigh5xxRate
+        expr: (sum(rate(http_requests_total{job="awp-control-plane",status=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total{job="awp-control-plane"}[5m])), 0.001) > 0.05) and sum(rate(http_requests_total{job="awp-control-plane"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Control-plane 5xx ratio exceeds 5 percent
+      - alert: AWPControlPlaneHighP95Latency
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="awp-control-plane"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Control-plane p95 latency exceeds one second

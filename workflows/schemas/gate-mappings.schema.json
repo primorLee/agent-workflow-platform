@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agent-workflow-platform/gate-mappings.schema.json",
+  "title": "Agent Workflow Platform gate mappings",
+  "type": "object",
+  "required": ["gates", "actions", "timeout_ms"],
+  "properties": {
+    "$schema": {"const": "../schemas/gate-mappings.schema.json"},
+    "gates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["command", "blocking", "description"],
+        "properties": {
+          "command": {"type": "string"},
+          "blocking": {"type": "boolean"},
+          "typical_duration_ms": {"type": "integer", "minimum": 0},
+          "description": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "actions": {"type": "object"},
+    "timeout_ms": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}

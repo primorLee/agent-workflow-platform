@@ -1,0 +1,84 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+**/cc-secrets/
+**/.secrets/
+**/secrets/
+
+# Runtime state and local data
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.log
+*.pid
+*.sock
+*.jsonl
+!*.synthetic.jsonl
+!*.example.jsonl
+run-state.json
+guardian-history.jsonl
+data/
+logs/
+tmp/
+.cache/
+.agent-workflow/
+.awp-data/
+.demo-data/
+.local-observability-secrets/
+services/worker-agent/agent.yaml
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+dist-*/
+build/
+build-*/
+coverage/
+playwright-report/
+test-results/
+.expo/
+.vite/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Go
+bin/
+*.test
+coverage.out
+
+# Editors and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Packaging and generated artifacts
+*.AppImage
+*.dmg
+*.exe
+*.msi
+*.deb
+*.rpm
+*.tar
+*.tar.gz
+*.zip
+latest*.yml
+*.blockmap

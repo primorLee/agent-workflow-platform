@@ -1,0 +1,35 @@
+{
+  "$schema": "../schemas/gate-mappings.schema.json",
+  "gates": {
+    "unit-tests": {
+      "command": "python -m pytest -q",
+      "blocking": true,
+      "typical_duration_ms": 30000,
+      "description": "Project unit tests"
+    },
+    "python-syntax": {
+      "command": "python -m compileall -q .",
+      "blocking": true,
+      "typical_duration_ms": 5000,
+      "description": "Python syntax check"
+    },
+    "workflow-validation": {
+      "command": "python workflows/validation/validate_workflows.py",
+      "blocking": true,
+      "typical_duration_ms": 5000,
+      "description": "Workflow schemas, links, examples, and safety policy"
+    },
+    "documentation-links": {
+      "command": "python workflows/validation/validate_workflows.py --links-only",
+      "blocking": false,
+      "typical_duration_ms": 2000,
+      "description": "Relative Markdown link check"
+    }
+  },
+  "actions": {
+    "continue": "Gate passed; continue",
+    "stop": "Blocking gate failed; repair before continuing",
+    "warn": "Non-blocking gate failed; record the warning and continue"
+  },
+  "timeout_ms": 300000
+}
