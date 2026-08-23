@@ -28,6 +28,65 @@ def _joined(*parts: str) -> str:
     return "".join(parts)
 
 
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    )
+
+
+def verify_annotated_tag_history(scanner_policy: dict[str, object]) -> bool:
+    with tempfile.TemporaryDirectory(prefix="awp-boundary-tag-") as raw:
+        fixture_root = Path(raw)
+        allowances = scanner_policy["SEMANTIC_ALLOWANCES"]
+        for relative in sorted({allowance.path for allowance in allowances}):
+            source = ROOT / relative
+            destination = fixture_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+
+        _git(fixture_root, "init", "--quiet")
+        _git(fixture_root, "config", "user.name", "AWP Boundary Test")
+        _git(fixture_root, "config", "user.email", "boundary@example.invalid")
+        _git(fixture_root, "add", ".")
+        _git(fixture_root, "commit", "--quiet", "-m", "safe fixture")
+        _git(fixture_root, "tag", "-a", "safe-v1", "-m", "safe release")
+
+        safe_result = subprocess.run(
+            [sys.executable, str(SCANNER), str(fixture_root), "--history"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if safe_result.returncode != 0:
+            print("FAILED: safe annotated tag was rejected", file=sys.stderr)
+            return False
+
+        secret = _joined("sk", "-", "P" * 24)
+        _git(fixture_root, "tag", "-a", "leak-v1", "-m", secret)
+        leak_result = subprocess.run(
+            [sys.executable, str(SCANNER), str(fixture_root), "--history"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        normalized = leak_result.stdout.replace("\\", "/")
+        marker = "openai-token-shape: refs/tags/leak-v1:"
+        if leak_result.returncode != 1 or marker not in normalized:
+            print("FAILED: annotated tag secret was not blocked", file=sys.stderr)
+            return False
+        if secret in leak_result.stdout:
+            print("FAILED: scanner printed annotated tag secret", file=sys.stderr)
+            return False
+    return True
+
+
 def main() -> int:
     scanner_policy = runpy.run_path(str(SCANNER))
     maximum = int(scanner_policy["MAX_FILE_BYTES"])
@@ -285,7 +344,13 @@ def main() -> int:
                 )
                 return 1
 
-    print(f"boundary fail-closed negative cases passed: {len(cases)}/{len(cases)}")
+    if not verify_annotated_tag_history(scanner_policy):
+        return 1
+
+    print(
+        f"boundary fail-closed negative cases passed: {len(cases)}/{len(cases)} "
+        "+ annotated tag history"
+    )
     return 0
 
 
