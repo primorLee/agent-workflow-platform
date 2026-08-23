@@ -53,21 +53,28 @@ to expire and its task to return to `pending`, restarts the worker, and requires
 the task to succeed under a different attempt fence. CI runs these commands on
 an ephemeral GitHub-hosted runner and removes the volumes afterward.
 
-## Current candidate record
+## Release-candidate record
 
-Candidate date: 2026-08-24. Local environment: Windows, Python 3.12.
+Candidate date: 2026-08-24. Candidate commit: `2fd06b7`. The complete
+[GitHub Actions run](https://github.com/primorLee/agent-workflow-platform/actions/runs/32662921171)
+passed. Local component results below came from Windows with Python 3.12; the
+container and Go records came from GitHub's Ubuntu runner.
 
 | Gate | Result |
 | --- | --- |
-| Control-plane component suite | 156 passed, 5 skipped |
+| Control-plane component suite | 159 passed, 5 skipped |
 | Python-worker component suite | 89 passed, 9 skipped |
-| Ten-task Compose backlog | Required in CI; no local Docker result claimed |
-| Hard worker-crash recovery | Required in CI; no local Docker result claimed |
+| Ten-task Compose backlog | 10/10 completed in 10.070 s; 0.993 tasks/s; median 5.802 s; p95/max 9.898 s |
+| Hard worker-crash recovery | Worker killed; lease requeued; retry count 1; new attempt fence; success in 28.865 s |
+| Go VM-agent gate | Tests, replay stress, vet, disposable build, race detector, and official vulnerability scan passed |
+| Complete-history security gates | Public-boundary validation, Gitleaks, and TruffleHog passed |
 
 The skipped cases are platform/dependency-qualified tests already reported by
-pytest; they are not counted as passes. The release record must replace the two
-pending container rows with the exact successful CI run and its emitted JSON
-before a version is tagged.
+pytest; they are not counted as passes. The exact container JSON is retained in
+the successful
+[Compose job](https://github.com/primorLee/agent-workflow-platform/actions/runs/32662921171/job/97251695185),
+and the process-supervision checks are retained in the successful
+[Go job](https://github.com/primorLee/agent-workflow-platform/actions/runs/32662921171/job/97251695172).
 
 ## Benchmark interpretation
 

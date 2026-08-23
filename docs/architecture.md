@@ -149,6 +149,11 @@ process supervision, and watchdog behavior. The checked-in `main` wires the
 WebSocket dialer and a deliberately small `echo` runner. The public FastAPI
 control plane does not mount the corresponding VM broker endpoint.
 
+On its shipped Linux target, each task runs in an isolated process group:
+explicit or context cancellation removes descendants, output pipes are drained,
+and only then is terminal completion emitted. Other operating systems keep a
+direct-child fallback for build compatibility, not a process-tree guarantee.
+
 SQLite queue/replay and artifact-upload packages remain tested composition
 libraries, but are not all wired into the default Go `main`. There is no
 self-updater or published VM binary; package and one-line lifecycle paths fail

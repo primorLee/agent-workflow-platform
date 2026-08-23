@@ -19,6 +19,15 @@ source tag.
 - Complete-history secret scanning, public-boundary checks, multi-platform
   validation, issue forms, and contribution templates.
 
+### Fixed
+
+- Local stack verification batches task reads, respects `Retry-After`, and
+  restarts only the stopped worker instead of reconciling its healthy control
+  plane dependency.
+- Linux VM-agent cancellation kills the isolated task process group, drains
+  stdout/stderr before terminal completion, and prevents orphan descendants or
+  truncated final log frames.
+
 ### Security and compatibility notes
 
 - Workers are trusted launchers, not untrusted-code sandboxes.

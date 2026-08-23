@@ -18,6 +18,8 @@ regression tests remain.
 - Task acknowledgement, concurrency admission, cancellation, graceful drain,
   and protocol-version enforcement.
 - Shell-free process execution through a positive runner allowlist.
+- On Linux, isolated process-group cancellation and stdout/stderr draining
+  before the terminal completion frame.
 - Rotating structured logs, crash reports, Linux host inventory, and a
   self-watchdog.
 - YAML configuration with `AWP_AGENT_*` environment overrides and no
@@ -27,6 +29,11 @@ The built-in runner is deliberately limited to the deterministic `echo`
 adapter. It is not an OS sandbox. Add adapters through the explicit allowlist,
 run untrusted workloads under a separate operating-system isolation boundary,
 and add tests before enabling them.
+
+The shipped VM service target is Linux. Linux cancellation removes the task's
+process group so descendants cannot retain output pipes. Other operating
+systems remain build-compatible for tooling, but their fallback terminates
+only the direct child and is not a process-tree guarantee.
 
 ## Composition points
 
