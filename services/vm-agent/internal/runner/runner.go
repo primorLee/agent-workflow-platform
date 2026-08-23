@@ -144,8 +144,11 @@ func (r *Runner) Execute(ctx context.Context, offer *protocol.TaskOfferPayload, 
 	go func() { defer wg.Done(); streamPipe(stdout, "stdout", taskID, seq, sink) }()
 	go func() { defer wg.Done(); streamPipe(stderr, "stderr", taskID, seq, sink) }()
 
-	waitErr := cmd.Wait()
+	// StdoutPipe/StderrPipe require readers to reach EOF before Wait closes the
+	// descriptors. Reversing this order can truncate the final log chunk when a
+	// short-lived child exits faster than the reader goroutines are scheduled.
 	wg.Wait()
+	waitErr := cmd.Wait()
 
 	status := "success"
 	var errDetail *protocol.TaskErrorDetail

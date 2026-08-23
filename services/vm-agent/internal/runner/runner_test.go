@@ -75,6 +75,30 @@ func TestRunnerEchoSucceeds(t *testing.T) {
 	}
 }
 
+func TestRunnerDrainsOutputBeforeComplete(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses /bin/sh")
+	}
+	resolver := func(ctx context.Context, _ *protocol.TaskOfferPayload) (*exec.Cmd, error) {
+		return exec.CommandContext(
+			ctx,
+			"sh",
+			"-c",
+			"i=0; while [ $i -lt 2000 ]; do printf 'line-%s\\n' $i; i=$((i+1)); done",
+		), nil
+	}
+	r := NewWithResolver(silentLogger(), resolver)
+	sink := &capturingSink{}
+	r.Execute(context.Background(), &protocol.TaskOfferPayload{TaskID: "drain"}, sink)
+
+	if sink.complete == nil || sink.complete.Status != "success" {
+		t.Fatalf("expected successful completion, got %+v", sink.complete)
+	}
+	if got := len(sink.logs); got != 2000 {
+		t.Fatalf("got %d log frames, want 2000", got)
+	}
+}
+
 func TestRunnerNonZeroExitReportsError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses /bin/sh")
