@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from auth import require_agent, require_dev_key
+from config import TASK_LEASE_SECONDS
 from database import get_db
+from maintenance import publish_task_transitions, reap_expired_tasks
 from ws_broker import get_broker
 
 router = APIRouter()
@@ -34,6 +36,18 @@ async def _publish_task_status(tenant_id: str, task_id: str, status: str) -> Non
     )
 
 
+def _encode_json(value: dict[str, Any], *, label: str, canonical: bool = False) -> str:
+    try:
+        return json.dumps(
+            value,
+            allow_nan=False,
+            sort_keys=canonical,
+            separators=(",", ":") if canonical else None,
+        )
+    except (TypeError, ValueError, RecursionError):
+        raise HTTPException(422, f"{label} must be finite JSON") from None
+
+
 class CreateTaskRequest(BaseModel):
     task_type: str = Field(default="command", min_length=1, max_length=64)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -41,6 +55,11 @@ class CreateTaskRequest(BaseModel):
 
 
 class TaskResultRequest(BaseModel):
+    attempt_id: str = Field(
+        min_length=36,
+        max_length=36,
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    )
     status: Literal["success", "failed", "error", "cancelled"]
     output: dict[str, Any] = Field(default_factory=dict)
     logs: str = Field(default="", max_length=1_000_000)
@@ -71,7 +90,7 @@ async def create_task(body: CreateTaskRequest, tenant_id: str = Depends(require_
                 task_id,
                 tenant_id,
                 body.task_type,
-                json.dumps(body.payload),
+                _encode_json(body.payload, label="task payload"),
                 body.idempotency_key,
                 now,
                 now,
@@ -120,27 +139,59 @@ def get_task(task_id: str, tenant_id: str = Depends(require_dev_key)):
 
 
 @worker_router.get("/tasks/pending")
-async def pending_alias(agent: dict = Depends(require_agent)):
-    return await claim_pending(agent)
+async def pending_alias(
+    slots: int = Query(default=1, ge=1, le=64),
+    agent: dict = Depends(require_agent),
+):
+    if agent.get("status") == "offline":
+        raise HTTPException(409, "offline agent must heartbeat before claiming tasks")
+    return await claim_pending(agent, slots=slots)
 
 
-async def claim_pending(agent: dict) -> list[dict]:
+async def claim_pending(agent: dict, *, slots: int = 1) -> list[dict]:
+    transitions = reap_expired_tasks()
+    await publish_task_transitions(transitions)
+    limit = max(1, min(int(slots), 64))
     with get_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute(
             """SELECT * FROM tasks
                WHERE tenant_id=? AND status='pending'
-               ORDER BY created_at LIMIT 10""",
-            (agent["tenant_id"],),
+               ORDER BY created_at, id LIMIT ?""",
+            (agent["tenant_id"], limit),
         ).fetchall()
-        now = _now()
+        now_value = datetime.now(timezone.utc)
+        now = now_value.isoformat()
+        lease_expires_at = (now_value + timedelta(seconds=TASK_LEASE_SECONDS)).isoformat()
+        claimed: list[dict] = []
         for row in rows:
-            conn.execute(
-                """UPDATE tasks SET status='running', assigned_agent_id=?, delivered_at=?, updated_at=?
-                   WHERE id=? AND status='pending'""",
-                (agent["id"], now, now, row["id"]),
+            attempt_id = str(uuid.uuid4())
+            cur = conn.execute(
+                """UPDATE tasks
+                   SET status='running', assigned_agent_id=?, delivered_at=?,
+                       updated_at=?, attempt_id=?, lease_expires_at=?,
+                       lease_heartbeat_at=?, ack_received_at=NULL
+                   WHERE id=? AND tenant_id=? AND status='pending'""",
+                (
+                    agent["id"],
+                    now,
+                    now,
+                    attempt_id,
+                    lease_expires_at,
+                    now,
+                    row["id"],
+                    agent["tenant_id"],
+                ),
             )
-        claimed = [dict(row) for row in rows]
+            if cur.rowcount:
+                item = dict(row)
+                item.update(
+                    {
+                        "attempt_id": attempt_id,
+                        "lease_expires_at": lease_expires_at,
+                    }
+                )
+                claimed.append(item)
     for row in claimed:
         await _publish_task_status(agent["tenant_id"], row["id"], "running")
     return [
@@ -150,33 +201,74 @@ async def claim_pending(agent: dict) -> list[dict]:
             "payload": json.loads(row["payload_json"] or "{}"),
             "status": "running",
             "created_at": row["created_at"],
+            "attempt_id": row["attempt_id"],
+            "lease_expires_at": row["lease_expires_at"],
+            "retry_count": int(row.get("retry_count") or 0),
         }
         for row in claimed
     ]
 
 
-
-
 @worker_router.post("/tasks/{task_id}/result")
-async def submit_result(task_id: str, body: TaskResultRequest, agent: dict = Depends(require_agent)):
+async def submit_result(
+    task_id: str,
+    body: TaskResultRequest,
+    agent: dict = Depends(require_agent),
+):
     terminal = "success" if body.status == "success" else "failed"
     payload = {"output": body.output, "logs": body.logs, "duration_s": body.duration_s}
+    encoded = _encode_json(payload, label="task result", canonical=True)
+    completed_at = _now()
+    duplicate = False
     with get_db() as conn:
-        cur = conn.execute(
-            """UPDATE tasks SET status=?, result_json=?, error=?, response_received_at=?, updated_at=?
-               WHERE id=? AND tenant_id=? AND assigned_agent_id=?""",
-            (
-                terminal,
-                json.dumps(payload),
-                "" if terminal == "success" else body.logs[-2000:],
-                _now(),
-                _now(),
-                task_id,
-                agent["tenant_id"],
-                agent["id"],
-            ),
-        )
-    if not cur.rowcount:
-        raise HTTPException(404, "assigned task not found")
-    await _publish_task_status(agent["tenant_id"], task_id, terminal)
-    return {"ok": True, "task_id": task_id, "status": terminal}
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            """SELECT status, result_json, attempt_id, assigned_agent_id
+               FROM tasks WHERE id=? AND tenant_id=?""",
+            (task_id, agent["tenant_id"]),
+        ).fetchone()
+        if row is None or int(row["assigned_agent_id"] or -1) != int(agent["id"]):
+            raise HTTPException(404, "assigned task not found")
+        if row["attempt_id"] != body.attempt_id:
+            raise HTTPException(409, "stale task attempt")
+        if row["status"] in {"success", "failed"}:
+            previous = json.loads(row["result_json"] or "{}")
+            if row["status"] == terminal and previous == payload:
+                duplicate = True
+            else:
+                raise HTTPException(409, "task already completed with a different result")
+        elif row["status"] != "running":
+            raise HTTPException(409, "task attempt is not running")
+        if not duplicate:
+            cur = conn.execute(
+                """UPDATE tasks
+                   SET status=?, result_json=?, error=?, response_received_at=?,
+                       updated_at=?, lease_expires_at=NULL,
+                       lease_heartbeat_at=NULL,
+                       ack_received_at=COALESCE(ack_received_at, ?)
+                   WHERE id=? AND tenant_id=? AND assigned_agent_id=?
+                     AND attempt_id=? AND status='running'""",
+                (
+                    terminal,
+                    encoded,
+                    "" if terminal == "success" else body.logs[-2000:],
+                    completed_at,
+                    completed_at,
+                    completed_at,
+                    task_id,
+                    agent["tenant_id"],
+                    agent["id"],
+                    body.attempt_id,
+                ),
+            )
+            if not cur.rowcount:
+                raise HTTPException(409, "task attempt changed during completion")
+    if not duplicate:
+        await _publish_task_status(agent["tenant_id"], task_id, terminal)
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "status": terminal,
+        "duplicate": duplicate,
+        "attempt_id": body.attempt_id,
+    }

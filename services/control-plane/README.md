@@ -12,7 +12,8 @@ product identity and deployment endpoints.
 - numeric-loopback-only bind validation at configuration and request time;
 - SQLite WAL liveness/readiness and private data-root validation;
 - operator-key-authenticated worker registration;
-- agent-token-authenticated heartbeat, polling, and result reporting;
+- agent-token-authenticated heartbeat, capacity-aware polling, fenced task
+  leases, and result reporting;
 - idempotent task submission, listing, and inspection;
 - authenticated session metadata create/list/heartbeat/termination;
 - authenticated task status SSE at `/v1/events/tasks/{task_id}`;
@@ -24,6 +25,18 @@ Task creation, claim, and terminal result transitions publish through the same
 broker consumed by SSE. `AWP_WS_BROKER=redis` therefore changes the live event
 path. Redis configuration is fail-closed: the URL, dependency, initialization,
 and readiness must succeed; the service never silently falls back to memory.
+
+Claims use bounded at-least-once delivery. A worker asks for its free-slot
+count; each claimed task receives a UUID `attempt_id` and expiring lease.
+Heartbeats renew only the exact task/attempt/agent tuple. Missed leases are
+requeued within `AWP_TASK_MAX_RETRIES`; stale attempt results and conflicting
+terminal replays return `409`, while an identical terminal replay is a no-op.
+External side effects are not rolled back, so task authors still need an
+application-level idempotency boundary.
+
+The maintenance loop also expires stale agent and session registry rows.
+SQLite uses `PRAGMA user_version` migrations for lifecycle fields and refuses
+to open a schema newer than this service understands.
 
 The session API is a liveness and scheduling-metadata registry. Values under
 `resources` are hints only; this service does not allocate or enforce CPU,
@@ -64,6 +77,7 @@ docker compose -f deploy/local/docker-compose.local-dev.yml config --quiet
 docker compose -f deploy/local/docker-compose.local-dev.yml up -d --build
 python scripts/wait_for_http.py http://127.0.0.1:8100/v1/health/ready --timeout 120 --json-field database
 python scripts/submit_local_task.py --timeout 60
+python scripts/verify_task_lifecycle.py --count 10 --timeout 120
 ```
 
 A bootstrap container creates a random key in a private named volume. The
@@ -109,10 +123,11 @@ worker round trip.
 2. Submit work through `POST /v1/tasks` with the operator key.
 3. Optionally stream the authenticated snapshot and transitions from
    `GET /v1/events/tasks/{task_id}`.
-4. The worker polls `GET /v1/agent/tasks/pending` with its generated agent
-   token.
-5. It reports to `POST /v1/agent/tasks/{task_id}/result`.
-6. Inspect the durable result through `GET /v1/tasks/{task_id}`.
+4. The worker polls `GET /v1/agent/tasks/pending?slots=N` with its generated
+   agent token and receives a fenced `attempt_id` per claim.
+5. Busy heartbeats list exact task/attempt pairs to renew their leases.
+6. It reports to `POST /v1/agent/tasks/{task_id}/result` with that attempt.
+7. Inspect the durable result through `GET /v1/tasks/{task_id}`.
 
 All task and session lookups are tenant-scoped by the authenticated identity.
 The public local key currently maps to the single local tenant; the schema and

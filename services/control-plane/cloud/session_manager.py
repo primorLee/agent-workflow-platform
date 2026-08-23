@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from database import get_db
+from maintenance import expire_stale_sessions
 
 _log = logging.getLogger(__name__)
 
@@ -97,6 +98,7 @@ class SessionManager:
         now = self._now()
         resource_hints = DEFAULT_RESOURCE_HINTS[session_type]
         metadata_value = metadata or {}
+        expire_stale_sessions()
         with get_db() as db:
             db.execute("BEGIN IMMEDIATE")
             user_count = db.execute(
@@ -149,8 +151,8 @@ class SessionManager:
         with get_db() as db:
             cursor = db.execute(
                 """UPDATE sessions
-                      SET last_heartbeat=?, status='active'
-                    WHERE session_id=? AND user_id=? AND status!='terminated'""",
+                      SET last_heartbeat=?
+                    WHERE session_id=? AND user_id=? AND status='active'""",
                 (self._now(), session_id, user_id),
             )
             return bool(cursor.rowcount)

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/primorLee/agent-workflow-platform/security/advisories/new
+    about: Report vulnerabilities and exploit details privately.

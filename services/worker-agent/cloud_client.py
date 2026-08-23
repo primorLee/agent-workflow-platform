@@ -35,6 +35,9 @@ _MAX_DELAY = 60
 _MAX_OFFLINE_BYTES = 16 * 1024 * 1024
 _MAX_OFFLINE_LOG_BYTES = 1024 * 1024
 _SAFE_TASK_ID = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+_SAFE_ATTEMPT_ID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+)
 _DNS_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 _CLOUD_URL_INVALID = "cloud_url must be an absolute HTTP(S) URL with a valid host"
 _CLOUD_URL_INSECURE = "plain HTTP cloud_url is allowed only for localhost or a loopback IP"
@@ -44,7 +47,7 @@ _QUEUE_MARKER = {"schema": "awp-worker-offline-queue/v1"}
 _REJECTED_DIR_NAME = "rejected"
 _REJECTED_MARKER_NAME = ".awp-worker-rejected-queue.json"
 _REJECTED_MARKER = {"schema": "awp-worker-rejected-queue/v1"}
-_QUEUE_SCHEMA = "awp-offline-result/v1"
+_QUEUE_SCHEMA = "awp-offline-result/v2"
 _QUEUE_NAME = re.compile(
     r"^(?P<timestamp>[0-9]{20})-(?P<nonce>[0-9a-f]{32})\.json$"
 )
@@ -155,13 +158,16 @@ def validate_cloud_url(raw: str) -> str:
 
 def _validate_result_payload(payload: object) -> dict:
     if not isinstance(payload, dict) or set(payload) != {
-        "status", "output", "logs", "duration_s"
+        "attempt_id", "status", "output", "logs", "duration_s"
     }:
         raise ValueError("offline result payload has an invalid schema")
+    attempt_id = payload["attempt_id"]
     status = payload["status"]
     output = payload["output"]
     logs = payload["logs"]
     duration = payload["duration_s"]
+    if not isinstance(attempt_id, str) or not _SAFE_ATTEMPT_ID.fullmatch(attempt_id):
+        raise ValueError("offline result attempt_id is invalid")
     if status not in {"success", "failed"}:
         raise ValueError("offline result status is invalid")
     if not isinstance(output, dict):
@@ -311,21 +317,34 @@ class CloudClient:
             "capabilities": _system_info(),
         })
 
-    def poll_tasks(self) -> list[dict]:
-        raw = self._request("GET", "/v1/agent/tasks/pending")
+    def poll_tasks(self, slots: int = 1) -> list[dict]:
+        if isinstance(slots, bool) or not isinstance(slots, int) or not 1 <= slots <= 64:
+            raise ValueError("task claim slots must be between 1 and 64")
+        raw = self._request("GET", f"/v1/agent/tasks/pending?slots={slots}")
         items = raw if isinstance(raw, list) else raw.get("tasks", [])
         tasks = []
         for item in items:
+            task_id = str(item.get("id") or item.get("task_id") or "")
+            attempt_id = str(item.get("attempt_id") or "")
+            if not _SAFE_TASK_ID.fullmatch(task_id):
+                raise ValueError("control plane returned an invalid task_id")
+            if not _SAFE_ATTEMPT_ID.fullmatch(attempt_id):
+                raise ValueError("control plane returned an invalid attempt_id")
             payload = dict(item.get("payload") or {})
-            payload.setdefault("task_id", str(item.get("id") or item.get("task_id") or ""))
-            payload.setdefault("task_type", item.get("type", "command"))
+            payload["task_id"] = task_id
+            payload["task_type"] = item.get("type", "command")
+            payload["_awp_attempt_id"] = attempt_id
+            payload["_awp_retry_count"] = int(item.get("retry_count") or 0)
             tasks.append(payload)
         return tasks
 
-    def report_result(self, task_id: str, result: dict):
+    def report_result(self, task_id: str, attempt_id: str, result: dict):
         if not isinstance(task_id, str) or not _SAFE_TASK_ID.fullmatch(task_id):
             raise ValueError("task_id is invalid")
+        if not isinstance(attempt_id, str) or not _SAFE_ATTEMPT_ID.fullmatch(attempt_id):
+            raise ValueError("attempt_id is invalid")
         payload = {
+            "attempt_id": attempt_id,
             "status": "success" if result.get("status") == "success" else "failed",
             "output": result.get("output", {}),
             "logs": result.get("log_tail", ""),

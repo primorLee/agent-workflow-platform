@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     result_json TEXT,
     error TEXT,
     delivered_at TEXT,
+    attempt_id TEXT,
+    lease_expires_at TEXT,
+    lease_heartbeat_at TEXT,
     correlation_id TEXT,
     idempotency_key TEXT,
     ack_received_at TEXT,
@@ -63,6 +66,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     last_heartbeat TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user_status ON sessions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_sessions_status_heartbeat
+    ON sessions(status, last_heartbeat);
 
 CREATE TABLE IF NOT EXISTS agent_versions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,6 +97,13 @@ _MARKER_NAME = ".awp-data-root-v1"
 _MARKER_OWNER = "agent-workflow-platform-control-plane"
 _DB_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.db")
 _STORAGE_LOCK = threading.Lock()
+SCHEMA_VERSION = 2
+
+_TASK_LIFECYCLE_COLUMNS = {
+    "attempt_id": "TEXT",
+    "lease_expires_at": "TEXT",
+    "lease_heartbeat_at": "TEXT",
+}
 
 
 def _is_link_or_reparse(info: os.stat_result) -> bool:
@@ -289,9 +301,36 @@ def _connect() -> sqlite3.Connection:
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA busy_timeout=5000")
     return conn
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate_task_lifecycle(conn: sqlite3.Connection) -> None:
+    columns = _table_columns(conn, "tasks")
+    for name, declaration in _TASK_LIFECYCLE_COLUMNS.items():
+        if name not in columns:
+            conn.execute(f"ALTER TABLE tasks ADD COLUMN {name} {declaration}")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tasks_running_lease "
+        "ON tasks(status, lease_expires_at)"
+    )
+
+
 def init_db() -> None:
+    """Create the base schema, then apply versioned migrations fail-closed."""
     with _connect() as conn:
+        current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+        if current > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"database schema version {current} is newer than supported {SCHEMA_VERSION}"
+            )
         conn.executescript(_SCHEMA)
+        conn.execute("BEGIN IMMEDIATE")
+        if current < 2:
+            _migrate_task_lifecycle(conn)
+        conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
 @contextlib.contextmanager

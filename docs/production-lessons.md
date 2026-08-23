@@ -18,6 +18,20 @@ Cross-session recovery is not a chat summary. Run state is written atomically,
 versioned, checked against a schema by the workflow gate, and paired with the
 exact next action, blockers, and evidence. A new process can therefore
 distinguish fresh work, recoverable work, and work that requires human input.
+The workflow runtime reconstructs intent; it does not restart the missing
+process or claim that the resumed work has completed.
+
+## A claimed task needs a lease and a fence
+
+Worker capacity and control-plane delivery must agree. A worker now requests
+only its free slots, and each claimed task carries both an expiring lease and a
+unique attempt identifier. Heartbeats renew the exact attempt. If the worker
+disappears, maintenance requeues the task within a bounded retry budget; a late
+result from the old attempt is rejected instead of overwriting newer work.
+
+The resulting execution contract is at-least-once, not exactly-once. Attempt
+fencing protects the durable result, but external effects performed before a
+crash still require application-level idempotency.
 
 ## Stalls require hysteresis
 

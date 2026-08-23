@@ -334,6 +334,10 @@ jobs:
         run: python scripts/wait_for_http.py http://127.0.0.1:8100/v1/health/ready --timeout 120 --json-field database
       - name: Execute worker round trip
         run: python scripts/submit_local_task.py --timeout 60
+      - name: Verify capacity-aware backlog delivery
+        run: python scripts/verify_task_lifecycle.py --count 10 --timeout 120
+      - name: Kill a busy worker and verify leased recovery
+        run: python scripts/verify_worker_crash_recovery.py --timeout 120
       - name: Execute reference Agent managed-task round trip
         run: node scripts/reference_agent_local_round_trip.mjs
       - name: Print bounded failure diagnostics

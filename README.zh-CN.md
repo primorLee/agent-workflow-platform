@@ -3,8 +3,8 @@
   <h1>Agent Workflow Platform</h1>
   <p><strong>开发 Agent 产品，从一套完整底座开始。</strong></p>
   <p>
-    为 Agent 产品开发者准备的开源全栈底座：桌面客户端、控制面、Worker Runtime、
-    多 Agent 工作流、管理端和运维体系，全部可以直接运行或按模块集成。
+    一套来自真实产品、本地优先的 Agent 产品起步工具箱：一条可运行纵向链路，
+    加上一组可以独立采用的产品组件。
   </p>
   <p>
     <a href="#开始运行"><strong>开始运行</strong></a> ·
@@ -28,19 +28,23 @@
 
 模型、Agent SDK 和 CLI 解决“Agent 如何思考与调用工具”。把这套能力交付成真正的
 产品，还需要另一整套基础设施：用户界面、任务与 Session API、执行 Worker、
-多 Agent 协作、管理端、可观测性、更新、部署和故障恢复。
+持久化工作协作、管理端、可观测性、更新、部署和故障恢复。
 
-Agent Workflow Platform（AWP）就是这层产品化底座。你带来模型、Agent Runtime
-或 CLI，以及自己的领域逻辑；AWP 直接提供周围可复用的通用工程。
+Agent Workflow Platform（AWP）是这层产品基础设施的一套具体起步实现。你带来
+模型、Agent Runtime 或 CLI，以及自己的领域逻辑；按需采用周围的通用工程。
 
 **当前真正接通的范围：** Desktop ↔ 一个 OpenAI-compatible 模型 ↔ 一个托管任务工具
 ↔ FastAPI 控制面 ↔ Python Worker。文件工作流 Runtime、Go VM Agent 组合库、Admin
 与 Mobile 都有真实实现和独立测试，但没有全部预接到这一轮对话里。
 
+**这里的“起步工具箱”具体指：**克隆后可复现本地模型到 Worker 的参考链路和确定性
+演示。接入任意 Agent 仍需要实现对应 CLI/模型 Adapter；远程托管、租户身份、账户服务和
+不可信代码隔离都不是开箱即用能力。
+
 | 你负责 | AWP 直接提供 |
 | --- | --- |
 | 模型、Agent SDK、Runtime 或 CLI | Electron 桌面体验、流式输出、对话、产物、设置和诊断 |
-| 领域工具、Prompt 与业务逻辑 | 任务/Session 控制面、Worker 执行、多 Agent 工作流、审核门禁与恢复 |
+| 领域工具、Prompt 与业务逻辑 | 任务/Session 控制面、Worker 执行、持久化工作记录、审核门禁与恢复指令 |
 | Provider 与部署选择 | 显式 Adapter、本地优先默认值、Admin/Mobile 监控、打包通道、指标和运维模式 |
 
 你可以把整套仓库作为 Agent 产品起点，也可以只拿其中一个模块。各部分通过显式契约
@@ -59,15 +63,15 @@ Agent Workflow Platform（AWP）就是这层产品化底座。你带来模型、
 | 验证模型到 Worker 的整条参考链路 | 先启动 Compose，再运行 `python scripts/launch_local_agent_desktop.py --model <模型名>` |
 | 在桌面产品壳中接入真实模型 | 运行 [OpenAI-compatible 黄金路径](#2-在-desktop-中运行真实模型) |
 | 验证后端到 Worker 的完整执行链 | 运行 [Docker Compose 本地闭环](#1-跑通完整本地任务闭环) |
-| 给现有产品加入多 Agent 编排 | 使用[独立工作流 Runtime](#4-给任意仓库加入可恢复工作流) |
+| 给现有产品加入持久化、带审核门禁的工作协作 | 使用[独立工作流 Runtime](#4-给任意仓库加入可恢复工作流) |
 | 保留已有 Agent Runtime | 分别集成[控制面](services/control-plane/README.md)、[Worker](services/worker-agent/README.md) 与[部署模式](deploy/README.md) |
 
 ## 完整产品技术栈
 
 | | |
 | --- | --- |
-| **产品界面**<br>Electron + Vue 桌面工作台、只读 Admin 和 Expo Mobile 监控端，包含流式输出、对话、产物、设置、诊断与受约束的原生桥接。 | **控制面**<br>FastAPI 任务/Session API、SQLite/WAL、带鉴权 SSE、Worker 注册、心跳、健康检查、限流、脱敏日志和 Prometheus 指标。 |
-| **执行 Runtime**<br>Python 轮询 Worker 与 Go 出站 WebSocket Agent，包含命令准入、取消、进程监管、Watchdog、私有状态和离线结果重放。 | **多 Agent 工作流系统**<br>依赖感知调度、跨进程锁、原子 Batch Claim、Checkpoint、Guardian 恢复、角色分离审核、复现门禁和可复用 Recipes。 |
+| **产品界面**<br>Electron + Vue 桌面工作台、只读 Admin 和 Expo Mobile 监控端，包含流式输出、对话、产物、设置、诊断与受约束的原生桥接。 | **控制面**<br>FastAPI 任务/Session API、SQLite/WAL、容量感知 Claim、带 Fence 的 Attempt 与租约、鉴权 SSE、过期记录回收、健康检查、限流、脱敏日志和 Prometheus 指标。 |
+| **执行 Runtime**<br>默认接通的 Python 轮询 Worker，包含命令准入、取消、进程监管、私有状态和离线结果重放；另有独立测试的 Go 出站 Worker 边界。 | **持久化工作流工具箱**<br>依赖感知任务账本与 Batch Claim、跨进程锁、Checkpoint、停滞检测、恢复指令生成、角色分离审核、复现门禁和可复用 Recipes。 |
 | **部署与运维**<br>Docker Compose、严格 Redis 选择、随机密钥引导、Loopback Gateway、健康探针、SQLite WAL 备份/恢复、systemd、Prometheus 和 Grafana。 | **发布工程**<br>Stable/Preview 通道隔离、跨平台验证、完整历史密钥扫描、Manifest 与产物门禁、Go 离线验证、Race Detector 和回滚模式。 |
 
 ## 开始运行
@@ -97,11 +101,17 @@ Worker、随机密钥引导任务和 Loopback Gateway：
 docker compose -f deploy/local/docker-compose.local-dev.yml up -d --build
 python scripts/wait_for_http.py http://127.0.0.1:8100/v1/health/ready --timeout 120 --json-field database
 python scripts/submit_local_task.py --timeout 60
+python scripts/verify_task_lifecycle.py --count 10 --timeout 120
 ~~~
 
-最后一条命令会提交一个允许列表内、完全不经过 Shell 的 Python 任务，等待 Worker
-注册、领取和执行，再打印返回结果。辅助脚本会自动读取生成的 API Key，但不会把它
-输出到终端。
+第一个验证器会提交一个允许列表内、完全不经过 Shell 的 Python 任务并打印结果；
+Backlog 验证器继续证明 Claim 不会超过 Worker 容量，而且每个任务都进入终态。辅助
+脚本会自动读取生成的 API Key，但不会把它输出到终端。
+
+CI 还会硬停止一个正在执行任务的 Worker，并运行
+`python scripts/verify_worker_crash_recovery.py --timeout 120`：租约到期后任务被重新入队，
+新的 Attempt Fence 拒绝旧结果，重启 Worker 后任务完成。这个命令会暂时停止本地演示
+Worker 容器，只有在你明确接受这一点时才手动运行。
 
 保留状态并停止 Stack：
 
@@ -173,7 +183,9 @@ npm --prefix apps/desktop run dev
 
 ### 4. 给任意仓库加入可恢复工作流
 
-Scheduler 和 Guardian 只使用 Python 标准库。所有可变状态默认位于已忽略的
+Scheduler 和 Guardian 只使用 Python 标准库。Scheduler 是持久化任务账本与原子
+领取工具，不会自动启动 Agent 或执行任务；Guardian 检测停滞并根据证据生成恢复指令，
+不会替你重启进程。所有可变状态默认位于已忽略的
 <code>.agent-workflow/</code> 目录：
 
 ~~~bash
@@ -226,7 +238,7 @@ flowchart TB
 
     subgraph Workflow["持久化工作流层"]
         Scheduler["Scheduler + 审核门禁"]
-        Guardian["Guardian 恢复"]
+        Guardian["停滞检测 + 恢复指令"]
         State[("原子文件状态")]
         Scheduler <--> State
         Guardian <--> State
@@ -259,13 +271,15 @@ AWP 最重要的能力最初都是事故修复。只要公开仓库能安全复�
 | --- | --- | --- |
 | 进程或 Session 在完成部分工作后消失 | 原子保存 Checkpoint，并重建精确恢复指令 | [Scheduler](workflows/runtime/scheduler.py)、[Guardian](workflows/runtime/guardian.py) |
 | 多个 Agent 同时更新同一 Run | 用 OS 锁覆盖读取、领取、更新和原子替换的完整事务 | [Workflow Validator](workflows/validation/validate_workflows.py) |
+| Worker 领取任务后消失 | 租约到期后在有限重试预算内重新入队，并拒绝旧 Attempt 的迟到结果 | [生命周期测试](services/control-plane/tests/test_task_lifecycle.py)、[崩溃验证器](scripts/verify_worker_crash_recovery.py) |
 | Worker 完成任务时网络中断 | 持久化结果、恢复孤儿 Claim，并按 FIFO 重放 | [Python Worker](services/worker-agent/cloud_client.py)、[Go Queue](services/vm-agent/internal/queue/queue.go) |
 | SSE 客户端在订阅与 Snapshot 之间重连 | 先订阅、再读取权威 Snapshot，并保证退订 | [SSE Route](services/control-plane/cloud/routes/events_stream.py) |
 | SQLite 繁忙，或在线数据库需要备份 | 使用 WAL 感知并发，并在回归中真实恢复备份 | [运维测试](ops/tests/test_ops.py) |
 | 一次心跳延迟 | 连续失败达到阈值后才告警，并应用冷却时间 | [滞回验证](scripts/verify_guardian_hysteresis.py) |
 | 新版本进程存活但流量不健康 | 保留不可变版本，并恢复上一个 Stable Candidate | [Rollout Library](services/control-plane/cloud/rollout.py) |
 
-完整事故与机制说明见[生产经验](docs/production-lessons.md)。
+完整事故与机制说明见[生产经验](docs/production-lessons.md)；准确交付语义、可复现故障
+命令和本地实测结果见[可靠性证据](docs/reliability-evidence.md)。
 
 ## 项目边界
 
@@ -276,9 +290,9 @@ AWP 最重要的能力最初都是事故修复。只要公开仓库能安全复�
 - 真实模型 → 参考 CLI 进程 → Electron 流式响应 → 原生 Session 持久化恢复
 - 显式开启后，同一模型可经过 FastAPI 控制面、真实 Python Worker、允许列表进程、
   工具结果回传，最终在 Desktop 得到回答
-- 完整的本地任务创建 → Worker 领取 → 执行 → 结果返回闭环
+- 完整本地任务创建 → 容量受限 Claim → 带租约执行 → 幂等终态结果闭环
 - 无需账号、支持持久化历史与产物的 Electron 和浏览器演示
-- 独立 Scheduler、原子 Batch Claim、Checkpoint、审核角色、Recipes 与 Guardian 恢复
+- 独立持久化任务账本、原子 Batch Claim、Checkpoint、审核角色、Recipes、停滞检测与恢复指令生成
 - 只读 Admin 和移动监控端
 - Prometheus/Grafana 指标示例与 SQLite WAL 备份/恢复工具
 
@@ -301,10 +315,14 @@ Compose 托管任务路径连成了一条显式开启的闭环。它不会把每
 - 公共 VM Broker、VM Agent 自动更新器或远程多租户部署
 - 捆绑的专有 Agent CLI
 - 对任意不可信代码的安全隔离
-- 已签名桌面安装包或官方 Release Tag
+- 自动启动 Agent 的托管多租户编排服务
+- 已签名桌面安装包或已发布的应用/VM 二进制
+- 外部用户采用量或生产规模 Benchmark 的虚构结论
 
 Python 与 Go Worker 都是可信任务启动器，不是 OS Sandbox。不可信任务必须运行在
 无法读取宿主凭据的独立 VM、容器或 OS Identity 内。
+Worker 丢失时的任务执行语义是 at-least-once：Attempt Fence 能阻止旧结果提交，但
+崩溃前已经发生的外部副作用无法撤销，调用方必须让这些副作用具备幂等性。
 
 ## 仓库导航
 
@@ -338,7 +356,7 @@ Linux 和 macOS 上验证：
 - Gitleaks 与 TruffleHog 完整历史扫描；
 - 公开边界、Manifest、链接与生成产物检查；
 - 控制面、Worker、Workflow、Desktop、Admin、Mobile 和运维测试；
-- 真实 Docker Compose 任务闭环；
+- 并发 Claim/Fence/租约/迁移回归、真实 Docker Compose Backlog，以及硬杀 Worker 后恢复闭环；
 - Go 测试、Replay 压测、Race Detector、Vet、Build、模块完整性与可达漏洞扫描。
 
 Validator 不会隐式安装组件依赖，也不会偷偷访问托管服务。完整开发矩阵见
@@ -350,6 +368,8 @@ Validator 不会隐式安装组件依赖，也不会偷偷访问托管服务。�
 - [系统架构](docs/architecture.md) — 契约、数据流和信任边界
 - [Agent CLI 协议](docs/agent-cli-protocol.md) — 可执行文件、JSONL、流式输出、恢复和失败契约
 - [生产经验](docs/production-lessons.md) — 塑造当前设计的真实故障
+- [可靠性证据](docs/reliability-evidence.md) — 准确语义、可复现故障测试与本地实测
+- [更新日志](CHANGELOG.md) — 源码版本历史与兼容性说明
 - [工作流索引](workflows/INDEX.md) — 命令、模式、角色、Template 和 Recipe
 - [桌面端用户指南](apps/desktop/USER_GUIDE.md) — UI 与本地工作流
 - [安全策略](SECURITY.md) — 安全问题报告渠道与运行假设

@@ -37,12 +37,20 @@ docker compose -f deploy/local/docker-compose.local-dev.yml config --quiet
 docker compose -f deploy/local/docker-compose.local-dev.yml up -d --build
 python scripts/wait_for_http.py http://127.0.0.1:8100/v1/health/ready --timeout 120 --json-field database
 python scripts/submit_local_task.py --timeout 60
+python scripts/verify_task_lifecycle.py --count 10 --timeout 120
 ```
 
 The final command submits an allow-listed, shell-free Python invocation, waits
 for the worker result, and prints its output. It accepts only the documented
 localhost origin, disables ambient proxies and redirects, bounds responses, and
 discovers the generated Compose key without printing it.
+
+The backlog check submits ten tasks together and fails if any task is dropped,
+left non-terminal, or completed unsuccessfully. CI additionally runs
+`python scripts/verify_worker_crash_recovery.py --timeout 120`: it hard-stops
+the busy demo worker, waits for lease-based requeue, restarts the worker, and
+requires completion under a new attempt fence. That command intentionally
+stops the local worker container for a short period.
 
 The unusual network layout is intentional:
 
@@ -54,9 +62,10 @@ The unusual network layout is intentional:
 - The API key is random on first start and lives in a private named volume; no
   fixed development credential is checked in.
 
-This proves the public task create, worker registration, claim, execution,
-result, SQLite, strict Redis broker, readiness, and container network paths
-together. It does not prove remote exposure or untrusted-code isolation.
+This proves the public task create, worker registration, capacity-aware claim,
+leased retry, fenced result, SQLite, strict Redis broker, readiness, and
+container network paths together. It does not prove exactly-once external side
+effects, remote exposure, production scale, or untrusted-code isolation.
 
 Stop the containers while retaining the named volumes:
 
@@ -437,8 +446,8 @@ module cache fails instead of silently contacting the network.
 
 The public Go `main` speaks a richer WebSocket protocol that the FastAPI demo
 does not mount. Queue/replay and artifact upload are tested composition
-packages, not all default-main features. There is no self-updater and this
-source preview publishes no binary or release tag.
+packages, not all default-main features. There is no self-updater or published
+VM binary.
 
 ## Other component checks
 

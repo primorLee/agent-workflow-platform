@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible defect in a wired or documented AWP path.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets, private paths, customer data, or exploit details. Security issues belong in a private security advisory.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Local Compose task path
+        - Control plane
+        - Python worker
+        - Desktop / Agent CLI adapter
+        - Workflow toolkit
+        - Admin or mobile monitor
+        - Go VM-agent composition library
+        - Operations or release tooling
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or a full public commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, runtime versions, and local or container path.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Exact commands and the smallest synthetic input that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and sanitized evidence
+      description: Include bounded logs or screenshots only after removing sensitive data.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Public-data check
+      options:
+        - label: I removed credentials, private endpoints, customer data, and private filesystem paths.
+          required: true

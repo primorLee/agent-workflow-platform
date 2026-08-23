@@ -1,0 +1,35 @@
+name: Integration proposal
+description: Propose a narrow adapter or product-surface improvement.
+title: "[Integration]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Describe the concrete product-development bottleneck, not only a technology choice.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Proposed contract and boundary
+      description: State what is wired, what remains optional, and which existing AWP contract it uses.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Acceptance proof
+      description: Give a deterministic test or runnable vertical slice that would prove the integration works.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope checks
+      options:
+        - label: This proposal does not require private infrastructure, bundled credentials, or a proprietary binary.
+          required: true
+        - label: I have identified any security or trust-boundary change.
+          required: true

@@ -28,21 +28,30 @@ def test_local_agent_task_round_trip():
     assert created.status_code == 200
     task_id = created.json()["id"]
 
-    pending = client.get("/v1/agent/tasks/pending", headers=agent_headers)
+    pending = client.get("/v1/agent/tasks/pending?slots=64", headers=agent_headers)
     assert pending.status_code == 200
     assert pending.json()[0]["id"] == task_id
+    attempt_id = pending.json()[0]["attempt_id"]
 
     heartbeat = client.post(
         "/v1/agent/heartbeat",
         headers=agent_headers,
-        json={"status": "busy", "running_tasks": [task_id]},
+        json={
+            "status": "busy",
+            "running_tasks": [{"task_id": task_id, "attempt_id": attempt_id}],
+        },
     )
     assert heartbeat.status_code == 200
 
     completed = client.post(
         f"/v1/agent/tasks/{task_id}/result",
         headers=agent_headers,
-        json={"status": "success", "output": {"stdout": "ok\n", "exit_code": 0}, "duration_s": 0.01},
+        json={
+            "attempt_id": attempt_id,
+            "status": "success",
+            "output": {"stdout": "ok\n", "exit_code": 0},
+            "duration_s": 0.01,
+        },
     )
     assert completed.status_code == 200
 
@@ -104,12 +113,13 @@ def test_task_transitions_publish_live_broker_events(monkeypatch):
         json={"task_type": "command", "payload": {"argv": ["python", "-V"]}},
     )
     task_id = created.json()["id"]
-    pending = client.get("/v1/agent/tasks/pending", headers=agent_headers)
+    pending = client.get("/v1/agent/tasks/pending?slots=64", headers=agent_headers)
     assert task_id in {item["id"] for item in pending.json()}
+    attempt_id = next(item["attempt_id"] for item in pending.json() if item["id"] == task_id)
     completed = client.post(
         f"/v1/agent/tasks/{task_id}/result",
         headers=agent_headers,
-        json={"status": "success", "output": {}, "duration_s": 0.01},
+        json={"attempt_id": attempt_id, "status": "success", "output": {}, "duration_s": 0.01},
     )
     assert completed.status_code == 200
 
@@ -226,12 +236,13 @@ def test_task_transitions_flow_through_real_inmemory_envelopes():
 
     channel = _task_channel("local", task_id)
     asyncio.run(broker.subscribe(channel, capture))
-    pending = client.get("/v1/agent/tasks/pending", headers=agent_headers)
+    pending = client.get("/v1/agent/tasks/pending?slots=64", headers=agent_headers)
     assert task_id in {item["id"] for item in pending.json()}
+    attempt_id = next(item["attempt_id"] for item in pending.json() if item["id"] == task_id)
     completed = client.post(
         f"/v1/agent/tasks/{task_id}/result",
         headers=agent_headers,
-        json={"status": "success", "output": {}, "duration_s": 0.01},
+        json={"attempt_id": attempt_id, "status": "success", "output": {}, "duration_s": 0.01},
     )
     assert completed.status_code == 200
     asyncio.run(broker.unsubscribe(channel, capture))

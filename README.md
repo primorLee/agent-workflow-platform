@@ -3,9 +3,8 @@
   <h1>Agent Workflow Platform</h1>
   <p><strong>Ship an Agent product—not another prototype.</strong></p>
   <p>
-    An open-source, production-derived starter stack for developers building
-    Agent products: desktop client, control plane, worker runtime, multi-agent
-    workflows, administration, and operations.
+    A production-derived, local-first starter toolkit for Agent products: one
+    runnable vertical slice plus independently adoptable product components.
   </p>
   <p>
     <a href="#run-it"><strong>Run it</strong></a> ·
@@ -29,24 +28,29 @@
 
 Models, Agent SDKs, and CLIs implement the agent loop. Shipping that loop as a
 product requires a second stack: user experience, task and session APIs,
-execution workers, multi-agent coordination, administration, observability,
+execution workers, durable work coordination, administration, observability,
 updates, deployment, and recovery.
 
-Agent Workflow Platform (AWP) is that product layer. Bring your model, Agent
-runtime, or CLI and your domain logic; AWP supplies the reusable horizontal
-infrastructure around it.
+Agent Workflow Platform (AWP) is a concrete starter implementation of that
+product layer. Bring your model, Agent runtime, or CLI and your domain logic;
+adopt the pieces you need instead of rebuilding every horizontal concern.
 
 **Current integrated scope:** Desktop ↔ one OpenAI-compatible model ↔ one
 managed-task tool ↔ FastAPI control plane ↔ Python worker. The workflow runtime,
 Go VM-agent packages, admin, and mobile monitor are real separately tested
 surfaces, but they are not all prewired into that reference turn.
 
+**What “starter” means:** cloning the repository gives you a reproducible local
+model-to-worker path and deterministic demos. Connecting an arbitrary Agent
+still requires its CLI/model adapter; remote hosting, tenant identity, hosted
+account services, and untrusted-code isolation are deliberately not turnkey.
+
 ![AWP productization overview: bring your agent core and ship a complete product](docs/assets/readme/productization-overview.png)
 
 | You bring | AWP gives you |
 | --- | --- |
 | Model, Agent SDK, runtime, or CLI | Electron desktop experience, streaming, conversations, artifacts, settings, and diagnostics |
-| Domain tools, prompts, and business logic | Task/session control plane, worker execution, multi-agent workflows, review gates, and recovery |
+| Domain tools, prompts, and business logic | Task/session control plane, worker execution, durable workflow records, review gates, and resume instructions |
 | Provider and deployment choices | Explicit adapters, local-first defaults, admin/mobile monitors, packaging channels, metrics, and operations patterns |
 
 Use the whole stack as a working product baseline or adopt one component at a
@@ -65,15 +69,15 @@ release boundary.
 | Prove the integrated model-to-worker slice | Start Compose, then run `python scripts/launch_local_agent_desktop.py --model <id>` |
 | Put a real model behind the desktop shell | Run the [OpenAI-compatible golden path](#2-run-a-real-model-in-the-desktop) |
 | Validate the backend-to-worker execution path | Run the [Docker Compose round trip](#1-run-a-complete-local-task-round-trip) |
-| Add multi-agent orchestration to an existing product | Use the [standalone workflow runtime](#4-add-durable-workflows-to-any-repository) |
+| Add durable, review-gated work coordination | Use the [standalone workflow runtime](#4-add-durable-workflows-to-any-repository) |
 | Keep your existing Agent runtime | Integrate the [control plane](services/control-plane/README.md), [workers](services/worker-agent/README.md), and [operations patterns](deploy/README.md) independently |
 
 ## The platform, end to end
 
 | | |
 | --- | --- |
-| **Product interfaces**<br>Electron + Vue desktop workbench, read-only admin console, and Expo mobile monitor, with streaming, conversations, artifacts, settings, diagnostics, and guarded native bridges. | **Control plane**<br>FastAPI task/session APIs, SQLite/WAL, authenticated SSE, worker registration, heartbeats, health, rate limits, redacted logs, and Prometheus metrics. |
-| **Execution runtime**<br>Python polling workers and a Go outbound WebSocket agent, with command admission, cancellation, process supervision, watchdogs, private state, and offline result replay. | **Multi-agent workflow system**<br>Dependency-aware scheduling, cross-process locks, atomic batch claims, checkpoints, Guardian recovery, role-separated review, reproduction gates, and reusable recipes. |
+| **Product interfaces**<br>Electron + Vue desktop workbench, read-only admin console, and Expo mobile monitor, with streaming, conversations, artifacts, settings, diagnostics, and guarded native bridges. | **Control plane**<br>FastAPI task/session APIs, SQLite/WAL, capacity-aware claims, fenced attempts and leases, authenticated SSE, stale-record cleanup, health, rate limits, redacted logs, and Prometheus metrics. |
+| **Execution runtime**<br>A wired Python polling worker with command admission, cancellation, process supervision, private state, and offline result replay; plus a separately tested Go outbound-worker boundary. | **Durable workflow toolkit**<br>Dependency-aware ledger and batch claims, cross-process locks, checkpoints, stall detection, resume-instruction generation, role-separated review, reproduction gates, and reusable recipes. |
 | **Deployment and operations**<br>Docker Compose, strict Redis selection, random-key bootstrap, loopback gateway, health probes, SQLite WAL backup/restore, systemd examples, Prometheus, and Grafana. | **Release engineering**<br>Stable/Preview channel isolation, cross-platform validation, complete-history secret scans, manifest and artifact gates, offline Go verification, race detection, and rollback patterns. |
 
 ## Run it
@@ -104,11 +108,19 @@ loopback gateway:
 docker compose -f deploy/local/docker-compose.local-dev.yml up -d --build
 python scripts/wait_for_http.py http://127.0.0.1:8100/v1/health/ready --timeout 120 --json-field database
 python scripts/submit_local_task.py --timeout 60
+python scripts/verify_task_lifecycle.py --count 10 --timeout 120
 ~~~
 
-The final command submits an allow-listed, shell-free Python task, waits while
-the worker registers and claims it, and prints the returned result. The helper
-discovers the generated API key without printing it.
+The first verifier submits an allow-listed, shell-free Python task and prints
+its result. The backlog verifier then proves that claims respect worker
+capacity and that every submitted task reaches a terminal state. Both helpers
+discover the generated API key without printing it.
+
+CI also hard-stops a busy worker and runs
+`python scripts/verify_worker_crash_recovery.py --timeout 120`. The task lease
+expires, the task is requeued with a new fenced attempt, and the restarted
+worker completes it. Run that command locally only when you are comfortable
+with it temporarily stopping the demo worker container.
 
 Stop the stack while keeping its state:
 
@@ -187,8 +199,11 @@ npm --prefix apps/desktop run dev
 
 ### 4. Add durable workflows to any repository
 
-The scheduler and Guardian use only the Python standard library. Mutable state
-stays under the ignored <code>.agent-workflow/</code> directory:
+The scheduler and Guardian use only the Python standard library. The scheduler
+is a durable task ledger and atomic claim helper—it does not spawn Agents or
+execute tasks. Guardian detects stale progress and constructs a resume
+instruction from evidence—it does not restart a process. Mutable state stays
+under the ignored <code>.agent-workflow/</code> directory:
 
 ~~~bash
 python workflows/runtime/scheduler.py add "Create a deterministic smoke test" 2 --group reliability
@@ -241,7 +256,7 @@ flowchart TB
 
     subgraph Workflow["Durable workflow layer"]
         Scheduler["Scheduler + review gates"]
-        Guardian["Guardian recovery"]
+        Guardian["Stall detector + resume instruction"]
         State[("Atomic file state")]
         Scheduler <--> State
         Guardian <--> State
@@ -276,6 +291,7 @@ can reproduce the failure safely.
 | --- | --- | --- |
 | A process or session disappears after useful work | Saves atomic checkpoints and reconstructs a precise recovery instruction | [Scheduler](workflows/runtime/scheduler.py), [Guardian](workflows/runtime/guardian.py) |
 | Multiple agents update the same run | Holds an OS lock across read, claim, update, and atomic replacement | [Workflow validator](workflows/validation/validate_workflows.py) |
+| A worker disappears after claiming work | Expires its lease, requeues within a bounded retry budget, and rejects the stale attempt's late result | [Lifecycle tests](services/control-plane/tests/test_task_lifecycle.py), [crash verifier](scripts/verify_worker_crash_recovery.py) |
 | A worker finishes while the network is down | Persists results, recovers orphan claims, and replays in FIFO order | [Python worker](services/worker-agent/cloud_client.py), [Go queue](services/vm-agent/internal/queue/queue.go) |
 | An SSE client reconnects between subscribe and snapshot | Subscribes first, reads the authoritative snapshot, and always unsubscribes | [SSE route](services/control-plane/cloud/routes/events_stream.py) |
 | SQLite is busy or a live database is backed up | Uses WAL-aware concurrency and restores the backup in regression tests | [Operations tests](ops/tests/test_ops.py) |
@@ -283,7 +299,9 @@ can reproduce the failure safely.
 | A rollout is alive but unhealthy | Preserves immutable versions and restores the previous stable candidate | [Rollout library](services/control-plane/cloud/rollout.py) |
 
 The incident-to-mechanism story is documented in
-[Production lessons](docs/production-lessons.md).
+[Production lessons](docs/production-lessons.md). Reproducible commands,
+delivery semantics, and measured local results live in
+[Reliability evidence](docs/reliability-evidence.md).
 
 ## Project boundaries
 
@@ -296,10 +314,11 @@ production integration is public.
   native-session resume, against a user-selected OpenAI-compatible endpoint
 - Exact-opt-in reference path from that model through the FastAPI control plane,
   real Python worker, allow-listed process, tool result, and final Desktop answer
-- Complete localhost task creation → worker claim → execution → result round trip
+- Complete localhost task creation → capacity-bounded claim → leased execution →
+  idempotent terminal result round trip
 - No-account Electron and browser demos with durable history and artifacts
-- Standalone scheduler, atomic batch claims, checkpoints, review roles, recipes,
-  and Guardian recovery
+- Standalone durable ledger, atomic batch claims, checkpoints, review roles,
+  recipes, stall detection, and resume-instruction generation
 - Read-only admin and mobile monitoring clients
 - Prometheus/Grafana metrics example and SQLite WAL backup/restore tooling
 
@@ -324,10 +343,15 @@ workflow runtime or the optional Go VM-agent libraries to that turn.
 - A public VM broker, automatic VM-agent updater, or remote multi-tenant deployment
 - A bundled proprietary Agent CLI
 - A security boundary for arbitrary untrusted code
-- Signed desktop installers or an official release tag
+- A hosted multi-tenant orchestrator that automatically spawns Agents
+- Signed desktop installers or published application/VM binaries
+- Claimed external adoption or production-scale benchmark results
 
 The Python and Go workers are trusted launchers. Run untrusted jobs inside a
 separate VM, container, or OS identity that cannot access host credentials.
+Task execution is at-least-once across worker loss: attempt fencing prevents a
+stale result from committing, but callers must make external side effects
+idempotent because a crashed attempt may have acted before its lease expired.
 
 ## Repository guide
 
@@ -361,7 +385,8 @@ public CI matrix runs on Windows, Linux, and macOS and includes:
 - complete-history Gitleaks and TruffleHog scans;
 - public-boundary, manifest, link, and generated-artifact checks;
 - control-plane, worker, workflow, desktop, admin, mobile, and operations tests;
-- a real Docker Compose task round trip;
+- concurrent claim/fencing/lease/migration regressions, a real Docker Compose
+  backlog, and a hard worker-crash recovery round trip;
 - Go tests, replay stress, race detection, vet, build, module integrity, and
   reachable-vulnerability scanning.
 
@@ -378,6 +403,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development matrix.
 - [Architecture](docs/architecture.md) — contracts, data flow, and trust boundaries
 - [Agent CLI protocol](docs/agent-cli-protocol.md) — executable, JSONL, streaming, resume, and failure contract
 - [Production lessons](docs/production-lessons.md) — failures that shaped the design
+- [Reliability evidence](docs/reliability-evidence.md) — exact semantics, reproducible fault tests, and measured local runs
+- [Changelog](CHANGELOG.md) — source-release history and compatibility notes
 - [Workflow index](workflows/INDEX.md) — commands, modes, roles, templates, and recipes
 - [Desktop user guide](apps/desktop/USER_GUIDE.md) — UI and local workflow
 - [Security policy](SECURITY.md) — supported reporting channel and operating assumptions

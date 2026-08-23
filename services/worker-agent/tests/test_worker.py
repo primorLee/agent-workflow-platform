@@ -31,6 +31,7 @@ from storage import prepare_app_root, write_exclusive
 
 _EXECUTABLE = Path(sys.executable).name
 _SECRET_FIXTURE = "seeded-host-credential-fixture"
+_ATTEMPT_ID = "00000000-0000-4000-8000-000000000001"
 
 
 def _prepare_trusted_host(monkeypatch, opt_in="1"):
@@ -547,12 +548,116 @@ def _queue_payload(task_id: str) -> dict:
     return {
         "task_id": task_id,
         "payload": {
+            "attempt_id": _ATTEMPT_ID,
             "status": "success",
             "output": {"exit_code": 0},
             "logs": "",
             "duration_s": 0,
         },
     }
+
+
+def test_cloud_client_requests_exact_free_slots_and_preserves_fenced_identity(
+    tmp_path, monkeypatch
+):
+    client = CloudClient(cloud_config(tmp_path))
+    seen = []
+
+    def request(method, path, payload=None, retries=5):
+        seen.append((method, path))
+        return [
+            {
+                "id": "authoritative-task",
+                "type": "command",
+                "attempt_id": _ATTEMPT_ID,
+                "retry_count": 2,
+                "payload": {
+                    "task_id": "payload-must-not-override",
+                    "_awp_attempt_id": "payload-must-not-override",
+                    "argv": [_EXECUTABLE, "-V"],
+                },
+            }
+        ]
+
+    monkeypatch.setattr(client, "_request", request)
+    tasks = client.poll_tasks(slots=2)
+    assert seen == [("GET", "/v1/agent/tasks/pending?slots=2")]
+    assert tasks == [
+        {
+            "task_id": "authoritative-task",
+            "task_type": "command",
+            "_awp_attempt_id": _ATTEMPT_ID,
+            "_awp_retry_count": 2,
+            "argv": [_EXECUTABLE, "-V"],
+        }
+    ]
+
+
+def test_agent_never_drops_an_already_claimed_overflow_response(tmp_path, monkeypatch):
+    class PendingFuture:
+        def done(self):
+            return False
+
+    class RecordingPool:
+        def __init__(self):
+            self.submissions = []
+
+        def submit(self, function, task):
+            self.submissions.append((function, task))
+            return PendingFuture()
+
+    class RecordingCloud:
+        def __init__(self):
+            self.requested_slots = []
+            self.heartbeats = []
+
+        def heartbeat(self, **payload):
+            self.heartbeats.append(payload)
+
+        def flush_offline(self):
+            return 0
+
+        def poll_tasks(self, slots):
+            self.requested_slots.append(slots)
+            # A broken/older server may violate the requested capacity. Once
+            # claimed, the worker must queue and renew every attempt, not drop it.
+            return [
+                {
+                    "task_id": f"overflow-{index}",
+                    "_awp_attempt_id": f"00000000-0000-4000-8000-{index:012d}",
+                    "argv": [_EXECUTABLE, "-V"],
+                }
+                for index in range(3)
+            ]
+
+    class Runner:
+        def cleanup_oldest(self, **_kwargs):
+            return None
+
+    instance = object.__new__(Agent)
+    instance._cfg = {"work_dir": str(tmp_path)}
+    instance._cloud = RecordingCloud()
+    instance._runner = Runner()
+    instance._max_concurrent = 2
+    instance._running = {}
+    instance._running_attempts = {}
+    instance._started = time.time()
+    instance._completed = 0
+    instance._last_error = ""
+    pool = RecordingPool()
+    monkeypatch.setattr(agent_module, "_write_status", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        agent_module.shutil,
+        "disk_usage",
+        lambda _path: type("Usage", (), {"free": 1024 * 1024 * 1024})(),
+    )
+
+    instance._tick(pool)
+
+    assert instance._cloud.requested_slots == [2]
+    assert len(pool.submissions) == 3
+    assert set(instance._running) == {"overflow-0", "overflow-1", "overflow-2"}
+    assert set(instance._running_attempts) == set(instance._running)
 
 
 def test_offline_result_replay_remains_fifo(tmp_path, monkeypatch):
@@ -923,15 +1028,17 @@ def test_task_exception_logs_and_result_do_not_echo_raw_exception(
         def __init__(self):
             self.reports = []
 
-        def report_result(self, task_id, result):
-            self.reports.append((task_id, result))
+        def report_result(self, task_id, attempt_id, result):
+            self.reports.append((task_id, attempt_id, result))
 
     instance = object.__new__(Agent)
     instance._runner = FailingRunner()
     instance._cloud = RecordingCloud()
     instance._last_error = ""
     with caplog.at_level("WARNING"):
-        instance._execute_task({"task_id": "safe-task"})
+        instance._execute_task(
+            {"task_id": "safe-task", "_awp_attempt_id": _ATTEMPT_ID}
+        )
 
     assert secret not in caplog.text
     assert secret not in instance._last_error

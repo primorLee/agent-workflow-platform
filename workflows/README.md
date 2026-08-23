@@ -1,6 +1,11 @@
 # Agent Workflow Platform — production-derived workflows
 
-This directory contains the portable workflow layer extracted from a retired, full-stack agent product. It keeps the mechanisms that survived real operation—durable run state, dependency-aware batching, heartbeat and checkpoint recovery, stall detection, adversarial review, failure-to-recipe learning, and claim-level reproduction gates—while removing product identity, private infrastructure, domain-specific logic, credentials, and real run history.
+This directory contains the portable work-coordination layer extracted from a retired, full-stack agent product. It keeps the mechanisms that survived real operation—durable run state, dependency-aware batching, heartbeat and checkpoint records, stall detection, adversarial review, failure-to-recipe learning, and claim-level reproduction gates—while removing product identity, private infrastructure, domain-specific logic, credentials, and real run history.
+
+This is deliberately not a hosted multi-agent orchestrator. The scheduler is a
+durable ledger and atomic claim tool; it does not launch Agents or execute task
+payloads. Guardian detects stale progress and builds a resume instruction from
+durable evidence; it does not restart a process or certify successful recovery.
 
 ## What is here
 
@@ -63,7 +68,9 @@ No notification endpoint is built in. Consume guardian stdout or JSONL from your
 3. Run `guardian.py resume` from a new terminal or session.
 4. The recovery instruction is rebuilt from checkpoint, backlog, recent commits, working-tree state, and optional `STATUS.md`.
 
-This tests recovery from durable artifacts rather than conversation memory.
+This tests reconstruction of recovery intent from durable artifacts rather
+than conversation memory. The caller still performs and verifies the resumed
+work.
 
 ## Safety boundary
 

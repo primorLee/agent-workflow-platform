@@ -24,6 +24,7 @@ The public extraction was prepared on 2026-08-22 from a retired production
 desktop and service snapshot. The clean public package line starts at `0.1.0`;
 historical component snapshot identifiers are disclosed only where they make
 the extraction provenance concrete (for example, the desktop snapshot). Those
-identifiers are not public tags and do not claim release-line continuity. No
-tag or binary has been published, and no private commit identifier, server
-name, username, or source filesystem path is carried into the new history.
+identifiers are not public tags and do not claim release-line continuity.
+`v0.1.0` is the first public source tag; it does not publish an application or
+VM binary. No private commit identifier, server name, username, or source
+filesystem path is carried into the new history.

@@ -36,6 +36,13 @@ services:
       AWP_WS_BROKER: redis
       AWP_PROMETHEUS_ENABLED: "1"
       AWP_METRICS_ALLOW_IPS: "*"
+      # Short demo leases keep the crash-recovery regression fast. Hosted
+      # deployments should tune these values to their task duration and network.
+      AWP_TASK_LEASE_SECONDS: "10"
+      AWP_TASK_MAX_RETRIES: "3"
+      AWP_MAINTENANCE_INTERVAL_SECONDS: "1"
+      AWP_AGENT_STALE_SECONDS: "15"
+      AWP_SESSION_STALE_SECONDS: "60"
     ports:
       - "127.0.0.1:8100:18100"
     volumes:

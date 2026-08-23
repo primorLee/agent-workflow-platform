@@ -11,12 +11,30 @@ DATA_DIR = Path(os.path.abspath(os.getenv("AWP_DATA_DIR", str(CONTROL_PLANE_ROOT
 DATABASE_URL = os.getenv("AWP_DATABASE_URL", str(DATA_DIR / "awp.db"))
 REDIS_CONNECT_URL = os.getenv("AWP_REDIS_URL", "").strip()
 TASK_SHUTDOWN_GRACE_SECONDS = int(os.getenv("AWP_TASK_SHUTDOWN_GRACE_SECONDS", "30"))
+TASK_LEASE_SECONDS = int(os.getenv("AWP_TASK_LEASE_SECONDS", "60"))
+TASK_MAX_RETRIES = int(os.getenv("AWP_TASK_MAX_RETRIES", "3"))
+MAINTENANCE_INTERVAL_SECONDS = int(os.getenv("AWP_MAINTENANCE_INTERVAL_SECONDS", "5"))
+AGENT_STALE_SECONDS = int(os.getenv("AWP_AGENT_STALE_SECONDS", "90"))
+SESSION_STALE_SECONDS = int(os.getenv("AWP_SESSION_STALE_SECONDS", "900"))
 MAX_GLOBAL_SESSIONS = int(os.getenv("AWP_MAX_GLOBAL_SESSIONS", "100"))
 SANDBOX_ROOT = os.getenv("AWP_SANDBOX_ROOT", "").strip()
 STORAGE_BACKEND = "local"
 ENV = os.getenv("AWP_ENV", "dev").strip().lower()
 AWP_ENV = ENV
 HOST = os.getenv("AWP_HOST", "127.0.0.1").strip()
+
+if TASK_LEASE_SECONDS < 5 or TASK_LEASE_SECONDS > 86_400:
+    raise RuntimeError("AWP_TASK_LEASE_SECONDS must be between 5 and 86400")
+if TASK_MAX_RETRIES < 0 or TASK_MAX_RETRIES > 100:
+    raise RuntimeError("AWP_TASK_MAX_RETRIES must be between 0 and 100")
+if MAINTENANCE_INTERVAL_SECONDS < 1 or MAINTENANCE_INTERVAL_SECONDS > 3600:
+    raise RuntimeError("AWP_MAINTENANCE_INTERVAL_SECONDS must be between 1 and 3600")
+if AGENT_STALE_SECONDS < TASK_LEASE_SECONDS or AGENT_STALE_SECONDS > 604_800:
+    raise RuntimeError(
+        "AWP_AGENT_STALE_SECONDS must be at least AWP_TASK_LEASE_SECONDS and at most 604800"
+    )
+if SESSION_STALE_SECONDS < 30 or SESSION_STALE_SECONDS > 2_592_000:
+    raise RuntimeError("AWP_SESSION_STALE_SECONDS must be between 30 and 2592000")
 
 _WEAK_KEYS = frozenset({
     "awp-local-dev-key",

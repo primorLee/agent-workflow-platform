@@ -1,6 +1,7 @@
 """Local-first FastAPI entrypoint for the Agent Workflow Platform."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -12,6 +13,7 @@ from fastapi.responses import JSONResponse
 from config import HOST, runtime_bind_matches_config, validate_startup_security
 from database import init_db
 from middleware import RateLimitMiddleware, RequestLoggingMiddleware
+from maintenance import maintenance_loop, stop_maintenance
 from observability import (
     MetricsMiddleware,
     RequestIDMiddleware,
@@ -33,9 +35,13 @@ init_db()
 async def lifespan(_app: FastAPI):
     broker = get_broker()
     await broker.initialize()
+    maintenance_task = asyncio.create_task(
+        maintenance_loop(), name="awp-control-plane-maintenance"
+    )
     try:
         yield
     finally:
+        await stop_maintenance(maintenance_task)
         await broker.close()
 
 

@@ -73,7 +73,7 @@ make VERSION=1.0.0 build-all
 `VERSION`, the current commit, and the UTC build date are passed with
 `-ldflags -X main.Version=... -X main.Commit=... -X main.Date=...`.
 
-This source preview has no signed binary or tag. `package-tar`, `package-deb`,
+This source tree has no signed VM binary or component release artifact. `package-tar`, `package-deb`,
 `package-rpm`, `package-apk`, `package-all`, `install-local`, and
 `uninstall-local` therefore exit with status 77 before build, staging, or host
 mutation. The package files preserve future composition points for review; all

@@ -33,5 +33,5 @@ expected impact, affected component, and any suggested mitigation.
 
 ## Supported code
 
-The default branch is the only supported line until the first tagged release.
-No binary distribution is currently supported.
+The latest `v0.1.x` source release and the default branch receive security
+fixes. No binary distribution is currently supported.

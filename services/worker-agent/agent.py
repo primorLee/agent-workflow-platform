@@ -923,6 +923,7 @@ class Agent:
         self._max_concurrent = int(cfg.get("max_concurrent", 2))
         self._poll_interval = int(cfg.get("poll_interval", 2))
         self._running = {}
+        self._running_attempts: dict[str, str] = {}
         self._started = time.time()
         self._completed = 0
         self._last_error = ""
@@ -970,6 +971,7 @@ class Agent:
     def _tick(self, pool: ThreadPoolExecutor) -> None:
         for task_id in [tid for tid, future in self._running.items() if future.done()]:
             future = self._running.pop(task_id)
+            self._running_attempts.pop(task_id, None)
             failure = future.exception()
             if failure is not None:
                 self._last_error = f"{_safe_task_label(task_id)}:{_error_kind(failure)}"
@@ -977,7 +979,14 @@ class Agent:
                 self._completed += 1
         status = "busy" if self._running else "idle"
         try:
-            self._cloud.heartbeat(status=status, running_tasks=list(self._running))
+            self._cloud.heartbeat(
+                status=status,
+                running_tasks=[
+                    {"task_id": task_id, "attempt_id": self._running_attempts[task_id]}
+                    for task_id in self._running
+                    if task_id in self._running_attempts
+                ],
+            )
         except Exception as exc:
             logger.warning("Heartbeat failed: %s", _error_kind(exc))
         _write_status(
@@ -1000,31 +1009,32 @@ class Agent:
         if free_slots <= 0:
             return
         try:
-            tasks = self._cloud.poll_tasks()
+            tasks = self._cloud.poll_tasks(slots=free_slots)
         except Exception as exc:
             logger.warning("Task poll failed: %s", _error_kind(exc))
             return
         for task in tasks:
-            if free_slots <= 0:
-                break
             task_id = _safe_task_label(task.get("task_id"))
-            if task_id == "invalid-task" or task_id in self._running:
+            attempt_id = str(task.get("_awp_attempt_id") or "")
+            if task_id == "invalid-task" or task_id in self._running or not attempt_id:
                 logger.warning("Skipped an invalid or duplicate task")
                 continue
+            self._running_attempts[task_id] = attempt_id
             self._running[task_id] = pool.submit(self._execute_task, task)
             free_slots -= 1
 
     def _execute_task(self, task: dict) -> None:
         task_id = _safe_task_label(task.get("task_id"))
+        attempt_id = str(task.get("_awp_attempt_id") or "")
         try:
             result = self._runner.run(task, cancel_event=_shutdown)
-            self._cloud.report_result(task_id, result)
+            self._cloud.report_result(task_id, attempt_id, result)
         except Exception as exc:
             kind = _error_kind(exc)
             self._last_error = f"{task_id}:{kind}"
             logger.warning("Task %s failed: %s", task_id, kind)
             try:
-                self._cloud.report_result(task_id, {
+                self._cloud.report_result(task_id, attempt_id, {
                     "status": "error",
                     "elapsed": 0,
                     "log_tail": f"worker exception: {kind}",

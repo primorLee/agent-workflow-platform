@@ -15,8 +15,8 @@ boundaries. The executable/JSONL contract for the first path is specified in
 [Agent CLI protocol](agent-cli-protocol.md).
 
 Agent Workflow Platform is a production-derived monorepo for long-running
-Agent CLI work. The public extraction keeps the desktop, orchestration,
-worker, recovery, and operations mechanisms, while removing the retired
+Agent CLI work. The public extraction keeps the desktop, durable coordination,
+worker, resume, and operations mechanisms, while removing the retired
 product identity and private deployment adapters.
 
 The repository deliberately exposes two runnable local paths and several
@@ -69,7 +69,8 @@ It validates both the configured host and the actual request socket and accepts
 only numeric loopback binding. The mounted API provides:
 
 - operator-key-authenticated task creation and inspection;
-- worker registration, agent-token heartbeat, task claim, and result report;
+- worker registration, agent-token heartbeat, capacity-bounded task claim,
+  leased attempt renewal, and result report;
 - authenticated, tenant-scoped task status SSE;
 - authenticated session metadata and liveness records;
 - liveness, SQLite/broker readiness, request IDs, bounded rate limiting,
@@ -81,6 +82,26 @@ direct `.db` child. Link/reparse traversal, permissive POSIX ownership or mode,
 and adoption of a non-empty unmarked directory fail closed. Connections use
 foreign keys, WAL, a busy timeout, and explicit write transactions for claims,
 idempotency, and session capacity.
+
+Task delivery uses bounded at-least-once semantics:
+
+1. A worker asks only for its current free-slot count. One SQLite write
+   transaction claims at most that many pending tasks.
+2. Every claim receives a new UUID attempt fence and an expiring lease. A
+   heartbeat renews only the exact `(task_id, attempt_id, agent_id)` tuple.
+3. The maintenance loop marks stale agents and sessions inactive. An expired
+   task lease is requeued with a new attempt until the configured retry budget
+   is exhausted, after which it becomes a durable failure.
+4. A terminal result may be replayed idempotently only when its attempt,
+   status, and payload match. Stale or conflicting completion attempts return
+   `409` and cannot overwrite the authoritative result.
+
+This prevents the old failure mode in which an oversized poll left work
+permanently `running`, but it is not exactly-once execution. A process may have
+performed an external side effect before it died; task authors must use their
+own idempotency key or transaction at that boundary. SQLite schema changes are
+versioned with `PRAGMA user_version`; startup migrates the lifecycle columns
+and rejects a database created by a newer unsupported schema.
 
 The task event broker is either single-process memory or Redis. Redis selection
 is strict: a missing URL, dependency, or connection makes startup/readiness
@@ -130,17 +151,20 @@ control plane does not mount the corresponding VM broker endpoint.
 
 SQLite queue/replay and artifact-upload packages remain tested composition
 libraries, but are not all wired into the default Go `main`. There is no
-self-updater. This source preview publishes no binary or release tag; package
-and one-line lifecycle paths fail closed. The reviewed manual installer can be
+self-updater or published VM binary; package and one-line lifecycle paths fail
+closed. The reviewed manual installer can be
 used only after a release owner supplies an external immutable artifact,
 digest, detached signature, and trusted public key.
 
 ### Workflow layer
 
-The workflow pack is an independent standard-library Python runtime. Atomic
-file-backed run state, dependency-aware claims, OS locking, checkpoints,
-guardian hysteresis, role-separated review, incident recipes, and six-stage
-reproduction gates let work survive process and context boundaries.
+The workflow pack is an independent standard-library Python coordination
+toolkit. Atomic file-backed run state, dependency-aware claims, OS locking,
+checkpoints, guardian hysteresis, role-separated review, incident recipes, and
+six-stage reproduction gates let work survive process and context boundaries.
+The scheduler records and claims work; it does not spawn Agents or execute the
+claimed tasks. Guardian detects stalls and renders a resume instruction; it
+does not restart a process or prove that recovery succeeded.
 
 It does not share the control-plane database or broker by default. A downstream
 application may translate its file contracts into API tasks and events; that is

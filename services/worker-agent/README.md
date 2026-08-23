@@ -1,9 +1,10 @@
 # AWP worker agent
 
 The Python worker is the outbound-only, poll-based execution adapter. It keeps
-the production mechanisms that matter: bounded concurrency, retry with
-backoff, FIFO offline result replay, process-tree cleanup, atomic status,
-single-instance ownership, disk-pressure cleanup, and graceful drain.
+the production mechanisms that matter: capacity-aware claims, fenced task
+leases, bounded concurrency, retry with backoff, FIFO offline result replay,
+process-tree cleanup, atomic status, single-instance ownership, disk-pressure
+cleanup, and graceful drain.
 
 ## Local trusted-operator demo
 
@@ -92,6 +93,12 @@ claims one file before sending. A process-wide lock plus the claim prevents
 concurrent flushes from double-sending a record. Orphan claims are recovered on
 the next flush, so delivery is intentionally at-least-once.
 
+Each cached result includes the control plane's authoritative `attempt_id`.
+After a lease expires, an old cached attempt is rejected rather than being
+allowed to overwrite the retried task. Identical current-attempt completion is
+safe to replay. This fences the durable result, not external side effects made
+before a worker crash; those operations must be idempotent themselves.
+
 Transient transport failures return the claim to the FIFO queue and stop that
 flush. A non-retryable 4xx response moves only that record into the owned
 `rejected/` directory and continues with later results, preventing one bad
@@ -100,6 +107,12 @@ linked, wrong-owner, wrong-mode, oversized, or identity-changing entries are
 left untouched and never read through another path.
 
 ## Control-plane transport
+
+Each poll sends the worker's exact free-slot count. Every running task and its
+attempt fence is included in busy heartbeats so the control plane can renew its
+lease. The worker never silently drops a task that a nonconforming server has
+already claimed; excess responses remain tracked in its executor queue and
+continue to be renewed.
 
 Use HTTPS for every non-loopback control plane. Plain HTTP is accepted only for
 exact `localhost` or an IP loopback literal, without DNS lookup. URLs with

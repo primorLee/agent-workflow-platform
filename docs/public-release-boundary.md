@@ -42,7 +42,7 @@ strict public boundary.
 - no CPU, memory, disk, container, or OS enforcement from session metadata;
 - no mounted VM-agent WebSocket endpoint in the public FastAPI service;
 - no control-plane release publishing or artifact route;
-- no automatic VM-agent updater, published binary, or release tag;
+- no automatic VM-agent updater or published application/VM binary;
 - no trace/log transport or notification delivery in the observability example.
 
 Control-plane and Python-worker state use dedicated marked roots. The worker's
@@ -78,6 +78,6 @@ verification are also release-blocking findings.
 This custom gate is strongest at repository-specific identity,
 specialized-domain content and names, forbidden file classes, paths, endpoints,
 and known token shapes. It is not a substitute for an entropy/general secret
-scanner. A first public tag still requires recorded full-history and
-release-artifact results from an independent tool such as Gitleaks or
-TruffleHog; installer archives are not produced by the current CI.
+scanner. Every public source tag requires recorded full-history results from
+independent tools such as Gitleaks and TruffleHog. Installer archives are not
+produced by the current CI.
