@@ -881,7 +881,7 @@ def scan_history(root: Path) -> list[tuple[str, Path, int]]:
         object_type, raw_size = metadata
         if object_type == "tree":
             continue
-        if object_type != "blob":
+        if object_type not in {"blob", "tag"}:
             finding = ("git-history-object-type-unsupported", relative, 0)
             if finding not in seen:
                 seen.add(finding)
@@ -897,28 +897,38 @@ def scan_history(root: Path) -> list[tuple[str, Path, int]]:
                 seen.add(finding)
                 findings.append(finding)
             continue
+        history_path = (
+            Path("refs") / "tags" / relative
+            if object_type == "tag"
+            else relative
+        )
         if blob_size > MAX_FILE_BYTES:
-            finding = ("oversize-historical-blob", relative, 0)
+            rule = (
+                "oversize-historical-tag"
+                if object_type == "tag"
+                else "oversize-historical-blob"
+            )
+            finding = (rule, history_path, 0)
             if finding not in seen:
                 seen.add(finding)
                 findings.append(finding)
             continue
         try:
             blob = subprocess.run(
-                ["git", "cat-file", "blob", object_id],
+                ["git", "cat-file", object_type, object_id],
                 cwd=root,
                 check=False,
                 capture_output=True,
                 timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
-            finding = ("git-history-read-unavailable", relative, 0)
+            finding = ("git-history-read-unavailable", history_path, 0)
             if finding not in seen:
                 seen.add(finding)
                 findings.append(finding)
             continue
         if blob.returncode != 0:
-            finding = ("git-history-read-unavailable", relative, 0)
+            finding = ("git-history-read-unavailable", history_path, 0)
             if finding not in seen:
                 seen.add(finding)
                 findings.append(finding)
@@ -926,11 +936,13 @@ def scan_history(root: Path) -> list[tuple[str, Path, int]]:
         try:
             text = blob.stdout.decode("utf-8")
         except UnicodeDecodeError:
-            blob_findings = list(scan_binary_metadata(blob.stdout, relative))
-            if relative.suffix.lower() not in REVIEWED_BINARY_ASSET_SUFFIXES:
+            blob_findings = list(scan_binary_metadata(blob.stdout, history_path))
+            if object_type == "tag":
+                blob_findings.append(("non-utf8-historical-tag", history_path, 0))
+            elif relative.suffix.lower() not in REVIEWED_BINARY_ASSET_SUFFIXES:
                 blob_findings.append(("non-utf8-historical-blob", relative, 0))
         else:
-            blob_findings = scan_text(text, relative)
+            blob_findings = scan_text(text, history_path)
         for finding in blob_findings:
             if finding not in seen:
                 seen.add(finding)
