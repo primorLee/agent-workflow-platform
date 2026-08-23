@@ -1,0 +1,6 @@
+<svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="awp-title">
+  <title id="awp-title">Agent Workflow Platform</title>
+  <defs><mask id="awp-cutouts"><rect width="160" height="160" fill="white"/><circle cx="80" cy="24" r="6" fill="black"/><circle cx="24" cy="132" r="6" fill="black"/><circle cx="136" cy="132" r="6" fill="black"/></mask></defs>
+  <g mask="url(#awp-cutouts)" stroke="#0B132B" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M80 24 24 132M80 24l56 108M24 132l56-32 56 32"/></g>
+  <g mask="url(#awp-cutouts)" fill="#0B132B"><circle cx="80" cy="24" r="16"/><circle cx="24" cy="132" r="16"/><circle cx="136" cy="132" r="16"/></g>
+</svg>

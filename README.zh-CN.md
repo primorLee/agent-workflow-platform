@@ -11,6 +11,7 @@
     <a href="#完整产品技术栈">平台能力</a> ·
     <a href="#系统如何协作">系统架构</a> ·
     <a href="docs/getting-started.md">完整文档</a> ·
+    <a href="docs/assets/brand/README.md">品牌素材</a> ·
     <a href="README.md">English</a>
   </p>
   <p>
@@ -40,6 +41,8 @@ Agent Workflow Platform（AWP）就是这层产品化底座。你带来模型、
 
 你可以把整套仓库作为 Agent 产品起点，也可以只拿其中一个模块。各部分通过显式契约
 组合，AWP 不要求你替换 Agent 原本的推理或工具调用方式。
+
+![AWP 产品化总览：带来你的 Agent 核心，交付完整产品](docs/assets/readme/productization-overview.png)
 
 这不是 Prompt 合集，也不是为了开源临时重写的干净玩具。它来自一个已经停止商业化、
 但真实运行过六个月 Agent 任务的产品；公开版本保留经过事故检验的实现与回归测试，
@@ -145,6 +148,11 @@ python workflows/runtime/guardian.py resume
 
 ## 系统如何协作
 
+![AWP 系统总览与显式集成边界](docs/assets/readme/system-overview.png)
+
+<details>
+<summary>展开文本版架构图</summary>
+
 ~~~mermaid
 flowchart TB
     subgraph Experience["体验层"]
@@ -189,6 +197,8 @@ flowchart TB
     Metrics["Prometheus / Grafana"] --> API
 ~~~
 
+</details>
+
 桌面 Chat Adapter、FastAPI 控制面、文件持久化工作流 Runtime 和 Go VM 协议是四套
 刻意分开的契约。虚线代表扩展边界，不代表隐藏路由。已经验证的 Compose 闭环使用
 Python Worker。
@@ -199,6 +209,8 @@ Python Worker。
 
 AWP 最重要的能力最初都是事故修复。只要公开仓库能安全复现对应问题，就同时保留
 机制和可执行回归，而不只留下一个“看起来实现了”的源文件。
+
+![AWP 可靠性闭环：保存状态、恢复意图、审核结果并沉淀经验](docs/assets/readme/reliability-loop.png)
 
 | 发生了什么 | 系统如何处理 | 直接查看 |
 | --- | --- | --- |

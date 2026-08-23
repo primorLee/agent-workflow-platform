@@ -12,6 +12,7 @@
     <a href="#the-platform-end-to-end">Platform</a> ·
     <a href="#how-it-fits-together">Architecture</a> ·
     <a href="docs/getting-started.md">Documentation</a> ·
+    <a href="docs/assets/brand/README.md">Brand assets</a> ·
     <a href="README.zh-CN.md">简体中文</a>
   </p>
   <p>
@@ -34,6 +35,8 @@ updates, deployment, and recovery.
 Agent Workflow Platform (AWP) is that product layer. Bring your model, Agent
 runtime, or CLI and your domain logic; AWP supplies the reusable horizontal
 infrastructure around it.
+
+![AWP productization overview: bring your agent core and ship a complete product](docs/assets/readme/productization-overview.png)
 
 | You bring | AWP gives you |
 | --- | --- |
@@ -154,6 +157,11 @@ incident recipes in the [workflow guide](workflows/README.md).
 
 ## How it fits together
 
+![AWP system overview and explicit integration boundaries](docs/assets/readme/system-overview.png)
+
+<details>
+<summary>Open the text-source architecture diagram</summary>
+
 ~~~mermaid
 flowchart TB
     subgraph Experience["Experience layer"]
@@ -198,6 +206,8 @@ flowchart TB
     Metrics["Prometheus / Grafana"] --> API
 ~~~
 
+</details>
+
 The desktop Chat adapter, FastAPI control plane, file-backed workflow runtime,
 and Go VM protocol are deliberately separate contracts. Dotted lines are
 extension boundaries, not hidden routes. The verified Compose round trip uses
@@ -210,6 +220,8 @@ Read the full [architecture and trust-boundary guide](docs/architecture.md).
 AWP's most important features started as incident fixes. The repository keeps
 both the mechanism and an executable regression whenever the public extraction
 can reproduce the failure safely.
+
+![AWP reliability loop: preserve state, recover intent, review the outcome, and encode the lesson](docs/assets/readme/reliability-loop.png)
 
 | When this happens | The system does this | Inspect it |
 | --- | --- | --- |

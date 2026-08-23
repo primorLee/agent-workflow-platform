@@ -1,0 +1,13 @@
+<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="awp-wordmark-title">
+  <title id="awp-wordmark-title">AWP — Agent Workflow Platform</title>
+  <defs>
+    <linearGradient id="awp-gradient" x1="80" y1="16" x2="80" y2="148" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2563EB"/><stop offset="1" stop-color="#14B8A6"/></linearGradient>
+    <mask id="awp-cutouts"><rect width="160" height="160" fill="white"/><circle cx="80" cy="24" r="6" fill="black"/><circle cx="24" cy="132" r="6" fill="black"/><circle cx="136" cy="132" r="6" fill="black"/></mask>
+  </defs>
+  <g transform="translate(10 10)">
+    <g mask="url(#awp-cutouts)" stroke="url(#awp-gradient)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M80 24 24 132M80 24l56 108M24 132l56-32 56 32"/></g>
+    <g mask="url(#awp-cutouts)" fill="url(#awp-gradient)"><circle cx="80" cy="24" r="16"/><circle cx="24" cy="132" r="16"/><circle cx="136" cy="132" r="16"/></g>
+  </g>
+  <text x="190" y="103" fill="#0B132B" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="88" font-weight="800" letter-spacing="1">AWP</text>
+  <text x="194" y="138" fill="#1F2937" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="23" font-weight="600">Agent Workflow Platform</text>
+</svg>
