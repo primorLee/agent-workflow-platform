@@ -1,16 +1,16 @@
 <div align="center">
   <img src="apps/desktop/public/awp-mark.svg" alt="Agent Workflow Platform" width="96">
   <h1>Agent Workflow Platform</h1>
-  <p><strong>Make long-running agent work survive real life.</strong></p>
+  <p><strong>Ship an Agent product—not another prototype.</strong></p>
   <p>
-    A local-first desktop, control plane, worker runtime, and durable workflow
-    system for Agent CLI work that must keep going across crashes, disconnects,
-    concurrent agents, and new sessions.
+    An open-source, production-derived starter stack for developers building
+    Agent products: desktop client, control plane, worker runtime, multi-agent
+    workflows, administration, and operations.
   </p>
   <p>
     <a href="#run-it"><strong>Run it</strong></a> ·
+    <a href="#the-platform-end-to-end">Platform</a> ·
     <a href="#how-it-fits-together">Architecture</a> ·
-    <a href="#built-around-failure">Production lessons</a> ·
     <a href="docs/getting-started.md">Documentation</a> ·
     <a href="README.zh-CN.md">简体中文</a>
   </p>
@@ -24,39 +24,48 @@
 
 ![Agent Workflow Platform desktop](apps/desktop/docs/desktop-demo.png)
 
-Most agent demos stop where real work begins.
+## The product layer around your agent
 
-A terminal closes. A network call succeeds but the acknowledgement is lost.
-Two agents claim the same task. A new session remembers the conclusion but not
-the exact next action. A heartbeat arrives late and a watchdog declares a
-healthy run dead.
+Models, Agent SDKs, and CLIs implement the agent loop. Shipping that loop as a
+product requires a second stack: user experience, task and session APIs,
+execution workers, multi-agent coordination, administration, observability,
+updates, deployment, and recovery.
 
-Agent Workflow Platform (AWP) treats those failures as the product surface.
-It gives an existing Agent CLI a desktop experience, a local control plane,
-trusted workers, durable run state, recovery loops, review protocols, and
-operations tooling—without forcing agent reasoning into a new framework.
+Agent Workflow Platform (AWP) is that product layer. Bring your model, Agent
+runtime, or CLI and your domain logic; AWP supplies the reusable horizontal
+infrastructure around it.
+
+| You bring | AWP gives you |
+| --- | --- |
+| Model, Agent SDK, runtime, or CLI | Electron desktop experience, streaming, conversations, artifacts, settings, and diagnostics |
+| Domain tools, prompts, and business logic | Task/session control plane, worker execution, multi-agent workflows, review gates, and recovery |
+| Provider and deployment choices | Explicit adapters, local-first defaults, admin/mobile monitors, packaging channels, metrics, and operations patterns |
+
+Use the whole stack as a working product baseline or adopt one component at a
+time. The contracts are explicit, so AWP does not need to replace the way your
+agent reasons or invokes tools.
 
 This is production-derived code, not a prompt collection or a clean-room demo.
 It was extracted from a retired commercial prototype after six months of real
 agent operation, then generalized and equipped with a public, fail-closed
 release boundary.
 
-## Start where you need it
+## Choose your starting point
 
 | If you want to… | Start here |
 | --- | --- |
-| See the product experience | Run the no-account [Electron desktop demo](#2-launch-the-desktop-workbench) |
-| Exercise the whole task path | Run the [Docker Compose round trip](#1-run-a-complete-local-task-round-trip) |
-| Make an existing repository recoverable | Use the [standalone workflow runtime](#3-add-durable-workflows-to-any-repository) |
-| Build your own agent product | Reuse the [control plane](services/control-plane/README.md), [workers](services/worker-agent/README.md), and [operations patterns](deploy/README.md) independently |
+| Start from a working Agent product shell | Run the no-account [Electron desktop demo](#2-launch-the-desktop-workbench) |
+| Validate the backend-to-worker execution path | Run the [Docker Compose round trip](#1-run-a-complete-local-task-round-trip) |
+| Add multi-agent orchestration to an existing product | Use the [standalone workflow runtime](#3-add-durable-workflows-to-any-repository) |
+| Keep your existing Agent runtime | Integrate the [control plane](services/control-plane/README.md), [workers](services/worker-agent/README.md), and [operations patterns](deploy/README.md) independently |
 
-## What you get
+## The platform, end to end
 
 | | |
 | --- | --- |
-| **Desktop workbench**<br>Electron + Vue, streamed tool events, conversations and artifacts that survive restart, guarded desktop bridges, diagnostics, SSH host-key pinning, and isolated Stable/Preview channels. | **Durable workflow runtime**<br>Dependency-aware scheduling, cross-process locks, atomic task claims, checkpoints, Guardian recovery, role-separated review, and failure-to-recipe learning. |
-| **Local control plane**<br>FastAPI, SQLite/WAL, authenticated task SSE, worker registration, heartbeats, sessions, health, rate limits, redacted logs, and Prometheus metrics. | **Two worker models**<br>A Python polling worker with crash-safe offline results, plus a Go WebSocket worker with reconnect, admission, cancellation, process supervision, watchdog, and tested replay packages. |
-| **Operations layer**<br>Docker Compose, strict Redis selection, random-key bootstrap, loopback gateway, health probes, SQLite WAL backup/restore, systemd examples, Prometheus, and Grafana. | **Public release gates**<br>Cross-platform validation, complete-history secret scans, manifest and link checks, unsafe-fixture rejection, offline Go verification, race detection, and generated-artifact rescans. |
+| **Product interfaces**<br>Electron + Vue desktop workbench, read-only admin console, and Expo mobile monitor, with streaming, conversations, artifacts, settings, diagnostics, and guarded native bridges. | **Control plane**<br>FastAPI task/session APIs, SQLite/WAL, authenticated SSE, worker registration, heartbeats, health, rate limits, redacted logs, and Prometheus metrics. |
+| **Execution runtime**<br>Python polling workers and a Go outbound WebSocket agent, with command admission, cancellation, process supervision, watchdogs, private state, and offline result replay. | **Multi-agent workflow system**<br>Dependency-aware scheduling, cross-process locks, atomic batch claims, checkpoints, Guardian recovery, role-separated review, reproduction gates, and reusable recipes. |
+| **Deployment and operations**<br>Docker Compose, strict Redis selection, random-key bootstrap, loopback gateway, health probes, SQLite WAL backup/restore, systemd examples, Prometheus, and Grafana. | **Release engineering**<br>Stable/Preview channel isolation, cross-platform validation, complete-history secret scans, manifest and artifact gates, offline Go verification, race detection, and rollback patterns. |
 
 ## Run it
 

@@ -1,15 +1,15 @@
 <div align="center">
   <img src="apps/desktop/public/awp-mark.svg" alt="Agent Workflow Platform" width="96">
   <h1>Agent Workflow Platform</h1>
-  <p><strong>让长时间运行的 Agent 工作真正活过故障、断线和换 Session。</strong></p>
+  <p><strong>开发 Agent 产品，从一套完整底座开始。</strong></p>
   <p>
-    一套面向 Agent CLI 的本地优先桌面端、控制面、Worker Runtime 与持久化工作流系统：
-    即使进程崩溃、网络中断、多个 Agent 并发或会话重启，任务仍能继续。
+    为 Agent 产品开发者准备的开源全栈底座：桌面客户端、控制面、Worker Runtime、
+    多 Agent 工作流、管理端和运维体系，全部可以直接运行或按模块集成。
   </p>
   <p>
     <a href="#开始运行"><strong>开始运行</strong></a> ·
+    <a href="#完整产品技术栈">平台能力</a> ·
     <a href="#系统如何协作">系统架构</a> ·
-    <a href="#围绕真实故障设计">生产经验</a> ·
     <a href="docs/getting-started.md">完整文档</a> ·
     <a href="README.md">English</a>
   </p>
@@ -23,36 +23,44 @@
 
 ![Agent Workflow Platform 桌面端](apps/desktop/docs/desktop-demo.png)
 
-大多数 Agent Demo，恰好停在真实工作开始的地方。
+## Agent 之外的产品层
 
-终端被关掉；网络请求成功了，但确认消息丢了；两个 Agent 同时领取了同一任务；
-新 Session 记得结论，却不知道下一步究竟该执行什么；一次心跳延迟，Guardian 就把
-仍在工作的任务误判为停止。
+模型、Agent SDK 和 CLI 解决“Agent 如何思考与调用工具”。把这套能力交付成真正的
+产品，还需要另一整套基础设施：用户界面、任务与 Session API、执行 Worker、
+多 Agent 协作、管理端、可观测性、更新、部署和故障恢复。
 
-Agent Workflow Platform（AWP）把这些失败本身当成产品需要解决的问题。它给已有
-Agent CLI 补上桌面体验、本地控制面、可信 Worker、持久化运行状态、恢复循环、审核
-协议与运维工具，同时不强迫你把 Agent 的推理逻辑迁移到另一套框架。
+Agent Workflow Platform（AWP）就是这层产品化底座。你带来模型、Agent Runtime
+或 CLI，以及自己的领域逻辑；AWP 直接提供周围可复用的通用工程。
+
+| 你负责 | AWP 直接提供 |
+| --- | --- |
+| 模型、Agent SDK、Runtime 或 CLI | Electron 桌面体验、流式输出、对话、产物、设置和诊断 |
+| 领域工具、Prompt 与业务逻辑 | 任务/Session 控制面、Worker 执行、多 Agent 工作流、审核门禁与恢复 |
+| Provider 与部署选择 | 显式 Adapter、本地优先默认值、Admin/Mobile 监控、打包通道、指标和运维模式 |
+
+你可以把整套仓库作为 Agent 产品起点，也可以只拿其中一个模块。各部分通过显式契约
+组合，AWP 不要求你替换 Agent 原本的推理或工具调用方式。
 
 这不是 Prompt 合集，也不是为了开源临时重写的干净玩具。它来自一个已经停止商业化、
 但真实运行过六个月 Agent 任务的产品；公开版本保留经过事故检验的实现与回归测试，
 并加入了 fail-closed 的公开发布边界。
 
-## 从你需要的部分开始
+## 选择你的起点
 
 | 你想做什么 | 从这里开始 |
 | --- | --- |
-| 先看到完整产品体验 | 运行无需账号的 [Electron 桌面演示](#2-启动桌面工作台) |
-| 跑通真正的任务闭环 | 运行 [Docker Compose 本地闭环](#1-跑通完整本地任务闭环) |
-| 让现有仓库具备跨 Session 恢复能力 | 使用[独立工作流 Runtime](#3-给任意仓库加入可恢复工作流) |
-| 构建自己的 Agent 产品 | 分别复用[控制面](services/control-plane/README.md)、[Worker](services/worker-agent/README.md) 与[部署模式](deploy/README.md) |
+| 从一个可工作的 Agent 产品外壳开始 | 运行无需账号的 [Electron 桌面演示](#2-启动桌面工作台) |
+| 验证后端到 Worker 的完整执行链 | 运行 [Docker Compose 本地闭环](#1-跑通完整本地任务闭环) |
+| 给现有产品加入多 Agent 编排 | 使用[独立工作流 Runtime](#3-给任意仓库加入可恢复工作流) |
+| 保留已有 Agent Runtime | 分别集成[控制面](services/control-plane/README.md)、[Worker](services/worker-agent/README.md) 与[部署模式](deploy/README.md) |
 
-## 你会得到什么
+## 完整产品技术栈
 
 | | |
 | --- | --- |
-| **桌面工作台**<br>Electron + Vue、流式工具事件、重启后仍可恢复的对话与产物、受约束的桌面桥接、诊断、SSH Host Key 固定，以及隔离的 Stable/Preview 通道。 | **持久化工作流 Runtime**<br>依赖感知调度、跨进程锁、原子任务领取、Checkpoint、Guardian 恢复、角色分离审核，以及从失败沉淀 Recipe 的飞轮。 |
-| **本地控制面**<br>FastAPI、SQLite/WAL、带鉴权的任务 SSE、Worker 注册、心跳、Session、健康检查、限流、脱敏日志和 Prometheus 指标。 | **两套 Worker 模型**<br>带崩溃安全离线结果队列的 Python 轮询 Worker，以及具备重连、准入、取消、进程监管、Watchdog 和重放包的 Go WebSocket Worker。 |
-| **运维层**<br>Docker Compose、严格 Redis 选择、随机密钥引导、Loopback Gateway、健康探针、SQLite WAL 备份/恢复、systemd、Prometheus 和 Grafana。 | **公开发布门禁**<br>跨平台验证、完整历史密钥扫描、Manifest 与链接检查、不安全 Fixture 拒绝、Go 离线验证、Race Detector 和构建产物复扫。 |
+| **产品界面**<br>Electron + Vue 桌面工作台、只读 Admin 和 Expo Mobile 监控端，包含流式输出、对话、产物、设置、诊断与受约束的原生桥接。 | **控制面**<br>FastAPI 任务/Session API、SQLite/WAL、带鉴权 SSE、Worker 注册、心跳、健康检查、限流、脱敏日志和 Prometheus 指标。 |
+| **执行 Runtime**<br>Python 轮询 Worker 与 Go 出站 WebSocket Agent，包含命令准入、取消、进程监管、Watchdog、私有状态和离线结果重放。 | **多 Agent 工作流系统**<br>依赖感知调度、跨进程锁、原子 Batch Claim、Checkpoint、Guardian 恢复、角色分离审核、复现门禁和可复用 Recipes。 |
+| **部署与运维**<br>Docker Compose、严格 Redis 选择、随机密钥引导、Loopback Gateway、健康探针、SQLite WAL 备份/恢复、systemd、Prometheus 和 Grafana。 | **发布工程**<br>Stable/Preview 通道隔离、跨平台验证、完整历史密钥扫描、Manifest 与产物门禁、Go 离线验证、Race Detector 和回滚模式。 |
 
 ## 开始运行
 
