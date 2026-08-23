@@ -74,7 +74,8 @@ NPM_COMPONENTS = {
 REQUIRED_MANIFEST_SCRIPTS = {
     "desktop": {
         "dev", "dev:web", "lint", "type-check", "test", "build-only", "verify",
-        "build:electron-main", "build:awp-cloud-mcp",
+        "build:electron-main", "build:awp-cloud-mcp", "agent:electron",
+        "openai-compatible:electron", "test:agent-launcher", "test:reference-provider",
     },
     "admin": {"dev", "typecheck", "test", "build", "preview", "verify"},
     "mobile": {"start", "android", "ios", "web", "typecheck"},

@@ -65,3 +65,4 @@ build-insiders-*/
 
 # Local demo control-plane state
 .demo-data/
+.agent-data/

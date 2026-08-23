@@ -40,6 +40,37 @@ npm run demo:electron
 
 Conversation state is stored in `.demo-data/sessions.json`; Electron-only local state is kept under `.demo-data/electron-user-data`. Both are ignored by Git.
 
+## Real model and external Agent CLI paths
+
+For a local OpenAI-compatible endpoint such as Ollama, run:
+
+```powershell
+$env:AWP_AGENT_MODEL='llama3.2'
+npm run openai-compatible:electron
+```
+
+The checked-in reference adapter is a real HTTP streaming client and persists
+its native session under `.agent-data/reference-agent-sessions`. It is a
+protocol example, not a general agent framework. It is chat-only by default;
+the exact `AWP_AGENT_MANAGED_TASKS_OPT_IN=1` value exposes one bounded
+`awp_run_managed_task` tool backed by the separately configured control plane.
+It does not invent broader planning or business logic. Remote endpoints require `AWP_AGENT_API_BASE_URL`,
+`AWP_AGENT_API_TOKEN`, and exact `AWP_AGENT_REMOTE_API_OPT_IN=1`.
+
+To use an existing Agent CLI instead:
+
+```powershell
+$env:AWP_AGENT_CLI_EXECUTABLE='C:\absolute\path\to\agent-cli.exe'
+$env:AWP_AGENT_DEFAULT_MODEL='provider-model-id'
+$env:AWP_AGENT_CLI_PROTOCOL='awp-jsonl'
+npm run agent:electron
+```
+
+`agent:electron` refuses a relative or symbolic-link executable and enables
+fail-visible mode: it never substitutes the deterministic adapter after a CLI
+failure. See the [Agent CLI protocol](../../docs/agent-cli-protocol.md) for the
+JSONL input, streaming output, resume, lifecycle, and error contract.
+
 ## The two local services are intentionally different
 
 | Address | Responsibility | Used for |
@@ -47,7 +78,9 @@ Conversation state is stored in `.demo-data/sessions.json`; Electron-only local 
 | `127.0.0.1:8787` | Desktop chat adapter | models, optional auth compatibility, chat/history/SSE, bounded uploads, durable artifacts, local UI metadata, restart recovery |
 | `127.0.0.1:8100` | Repository control plane | tasks, sessions, agent registration, health, metrics |
 
-The `8787` adapter does not imitate the full control plane. The `8100` service does not claim to implement the desktop chat contract.
+The `8787` adapter does not imitate the full control plane. The `8100` service
+does not claim to implement the desktop chat contract. The optional reference
+tool is an API client between them, not a protocol merger.
 
 ### Hosted authentication is explicit opt-in
 

@@ -33,6 +33,10 @@
 Agent Workflow Platform（AWP）就是这层产品化底座。你带来模型、Agent Runtime
 或 CLI，以及自己的领域逻辑；AWP 直接提供周围可复用的通用工程。
 
+**当前真正接通的范围：** Desktop ↔ 一个 OpenAI-compatible 模型 ↔ 一个托管任务工具
+↔ FastAPI 控制面 ↔ Python Worker。文件工作流 Runtime、Go VM Agent 组合库、Admin
+与 Mobile 都有真实实现和独立测试，但没有全部预接到这一轮对话里。
+
 | 你负责 | AWP 直接提供 |
 | --- | --- |
 | 模型、Agent SDK、Runtime 或 CLI | Electron 桌面体验、流式输出、对话、产物、设置和诊断 |
@@ -52,9 +56,10 @@ Agent Workflow Platform（AWP）就是这层产品化底座。你带来模型、
 
 | 你想做什么 | 从这里开始 |
 | --- | --- |
-| 从一个可工作的 Agent 产品外壳开始 | 运行无需账号的 [Electron 桌面演示](#2-启动桌面工作台) |
+| 验证模型到 Worker 的整条参考链路 | 先启动 Compose，再运行 `python scripts/launch_local_agent_desktop.py --model <模型名>` |
+| 在桌面产品壳中接入真实模型 | 运行 [OpenAI-compatible 黄金路径](#2-在-desktop-中运行真实模型) |
 | 验证后端到 Worker 的完整执行链 | 运行 [Docker Compose 本地闭环](#1-跑通完整本地任务闭环) |
-| 给现有产品加入多 Agent 编排 | 使用[独立工作流 Runtime](#3-给任意仓库加入可恢复工作流) |
+| 给现有产品加入多 Agent 编排 | 使用[独立工作流 Runtime](#4-给任意仓库加入可恢复工作流) |
 | 保留已有 Agent Runtime | 分别集成[控制面](services/control-plane/README.md)、[Worker](services/worker-agent/README.md) 与[部署模式](deploy/README.md) |
 
 ## 完整产品技术栈
@@ -107,7 +112,45 @@ docker compose -f deploy/local/docker-compose.local-dev.yml down --remove-orphan
 只有明确要删除本地数据库、Worker Queue、Redis 数据和生成的密钥时，才额外使用
 <code>-v</code>。
 
-### 2. 启动桌面工作台
+### 2. 在 Desktop 中运行真实模型
+
+仓库内置的参考 Adapter 会把 OpenAI-compatible Chat Completions 接口转换成
+AWP Desktop 使用的长生命周期 Agent CLI 子进程协议。使用本地 Ollama-compatible
+接口时，只需要提供已经下载好的模型名：
+
+~~~powershell
+npm --prefix apps/desktop ci
+$env:AWP_AGENT_MODEL='llama3.2'
+npm --prefix apps/desktop run openai-compatible:electron
+~~~
+
+~~~bash
+npm --prefix apps/desktop ci
+AWP_AGENT_MODEL=llama3.2 npm --prefix apps/desktop run openai-compatible:electron
+~~~
+
+这条链路使用真实 Electron 应用，启动真实本地 CLI 进程，把 Provider 的流式响应送入
+正常 UI 事件管线，并持久化模型 Session，使应用重启后能通过 `--resume` 恢复。远程
+兼容接口还必须显式配置 `AWP_AGENT_API_BASE_URL`、`AWP_AGENT_API_TOKEN` 和
+`AWP_AGENT_REMOTE_API_OPT_IN=1`。
+
+参考 Adapter 默认只负责聊天。先启动本地 Compose Stack，再用下面一条命令显式开启
+它唯一的托管任务工具，并启动同一条真实模型 Desktop 链路：
+
+~~~bash
+python scripts/launch_local_agent_desktop.py --model YOUR_TOOL_CAPABLE_MODEL
+~~~
+
+接口与模型必须支持 OpenAI 风格的流式 `tool_calls`。辅助脚本会在内存中读取随机
+本地 Key，不把它打印出来。模型随后可以调用
+`awp_run_managed_task`：Adapter 把受限 `argv` 提交到 FastAPI 控制面，可信 Worker
+不经过 Shell 执行允许列表内的命令，再把结果送回模型与 Desktop。这是一条窄但真实
+可跑的纵向链路，不是通用 Planning 或工具框架。已有 Agent CLI 只需实现
+[Agent CLI 协议](docs/agent-cli-protocol.md)，设置绝对路径
+`AWP_AGENT_CLI_EXECUTABLE` 与 `AWP_AGENT_DEFAULT_MODEL`，再运行
+`npm --prefix apps/desktop run agent:electron`。
+
+### 3. 启动确定性桌面工作台
 
 ~~~bash
 npm --prefix apps/desktop ci
@@ -128,7 +171,7 @@ Agent CLI 是一个显式 Adapter 选择；仓库不会捆绑任何专有 Provid
 npm --prefix apps/desktop run dev
 ~~~
 
-### 3. 给任意仓库加入可恢复工作流
+### 4. 给任意仓库加入可恢复工作流
 
 Scheduler 和 Guardian 只使用 Python 标准库。所有可变状态默认位于已忽略的
 <code>.agent-workflow/</code> 目录：
@@ -230,6 +273,9 @@ AWP 最重要的能力最初都是事故修复。只要公开仓库能安全复�
 
 ### 现在即可运行
 
+- 真实模型 → 参考 CLI 进程 → Electron 流式响应 → 原生 Session 持久化恢复
+- 显式开启后，同一模型可经过 FastAPI 控制面、真实 Python Worker、允许列表进程、
+  工具结果回传，最终在 Desktop 得到回答
 - 完整的本地任务创建 → Worker 领取 → 执行 → 结果返回闭环
 - 无需账号、支持持久化历史与产物的 Electron 和浏览器演示
 - 独立 Scheduler、原子 Batch Claim、Checkpoint、审核角色、Recipes 与 Guardian 恢复
@@ -244,6 +290,10 @@ AWP 最重要的能力最初都是事故修复。只要公开仓库能安全复�
 
 这些库有测试，但不会偷偷接入公开 FastAPI Demo 或默认 Go
 <code>main</code>。准确的组合边界见[架构文档](docs/architecture.md)。
+
+参考 Adapter 现在用唯一的 `awp_run_managed_task` 工具，把真实模型 Desktop 路径与
+Compose 托管任务路径连成了一条显式开启的闭环。它不会把每条聊天自动变成任务，也
+没有把文件工作流 Runtime 或可选 Go VM Agent 组合库偷偷接进这条链路。
 
 ### 明确没有发布
 
@@ -267,6 +317,7 @@ Python 与 Go Worker 都是可信任务启动器，不是 OS Sandbox。不可信
 | [services/worker-agent](services/worker-agent/README.md) | Python 轮询 Worker、私有状态和离线结果重放 |
 | [services/vm-agent](services/vm-agent/README.md) | Go WebSocket Worker、进程监管、Queue/Replay、产物和打包 |
 | [workflows](workflows/README.md) | Scheduler、Guardian、角色、命令、Schema、Template 和 Recipe |
+| [examples/openai-compatible-agent-cli](examples/openai-compatible-agent-cli/README.md) | Desktop Agent CLI 协议的真实模型参考实现 |
 | [deploy](deploy/README.md) | 本地 Compose 与可观测性示例 |
 | [ops](ops) | 健康探针、锁、WAL 备份、systemd 和回滚模式 |
 
@@ -297,6 +348,7 @@ Validator 不会隐式安装组件依赖，也不会偷偷访问托管服务。�
 
 - [上手指南](docs/getting-started.md) — 各平台环境与所有可运行路径
 - [系统架构](docs/architecture.md) — 契约、数据流和信任边界
+- [Agent CLI 协议](docs/agent-cli-protocol.md) — 可执行文件、JSONL、流式输出、恢复和失败契约
 - [生产经验](docs/production-lessons.md) — 塑造当前设计的真实故障
 - [工作流索引](workflows/INDEX.md) — 命令、模式、角色、Template 和 Recipe
 - [桌面端用户指南](apps/desktop/USER_GUIDE.md) — UI 与本地工作流

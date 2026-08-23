@@ -19,6 +19,15 @@ helper = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = helper
 SPEC.loader.exec_module(helper)
 
+LAUNCHER_PATH = ROOT / "scripts" / "launch_local_agent_desktop.py"
+LAUNCHER_SPEC = importlib.util.spec_from_file_location(
+    "launch_local_agent_desktop", LAUNCHER_PATH,
+)
+assert LAUNCHER_SPEC is not None and LAUNCHER_SPEC.loader is not None
+launcher = importlib.util.module_from_spec(LAUNCHER_SPEC)
+sys.modules[LAUNCHER_SPEC.name] = launcher
+LAUNCHER_SPEC.loader.exec_module(launcher)
+
 
 class FakeResponse:
     def __init__(
@@ -194,3 +203,35 @@ def test_cli_has_no_api_key_option_and_timeout_is_bounded():
     for invalid in ("nan", "0", "3601"):
         with pytest.raises(SystemExit):
             parser.parse_args(["--timeout", invalid])
+
+
+def test_desktop_bridge_launcher_passes_captured_key_only_in_child_environment(monkeypatch):
+    key = "q" * 32
+    captured = {}
+
+    class Result:
+        returncode = 0
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return Result()
+
+    monkeypatch.setattr(launcher, "load_api_key", lambda: key)
+    monkeypatch.setattr(launcher.shutil, "which", lambda name: "/tools/npm" if name == "npm" else None)
+    monkeypatch.setattr(launcher.subprocess, "run", fake_run)
+
+    assert launcher.main(["--model", "fixture-model"]) == 0
+    assert key not in " ".join(captured["command"])
+    environment = captured["kwargs"]["env"]
+    assert environment["AWP_AGENT_MANAGED_TASKS_OPT_IN"] == "1"
+    assert environment["AWP_CONTROL_PLANE_URL"] == "http://127.0.0.1:8100"
+    assert environment["AWP_CONTROL_PLANE_API_KEY"] == key
+    assert captured["kwargs"]["check"] is False
+
+
+def test_desktop_bridge_launcher_has_no_key_cli_and_rejects_bad_models():
+    source = LAUNCHER_PATH.read_text(encoding="utf-8")
+    assert '"--api-key"' not in source
+    with pytest.raises(launcher.argparse.ArgumentTypeError):
+        launcher.valid_model("\n")

@@ -21,13 +21,13 @@ import {
   mkdirSync,
   openSync,
   readSync,
-  realpathSync,
   renameSync,
   unlinkSync,
   writeSync,
   type Stats,
 } from 'node:fs'
 import { basename, isAbsolute, join, parse, relative, resolve } from 'node:path'
+import { assertPathHasNoRedirectComponents } from './canonical-path'
 
 const PRIVATE_ROOT_NAME = 'private'
 const ROOT_MARKER_NAME = '.awp-private-root.json'
@@ -412,7 +412,7 @@ function assertCurrentOwner(stat: Stats, label: string): void {
 }
 
 function assertCanonicalPath(target: string, label: string): void {
-  if (!samePath(realpathSync.native(target), resolve(target))) throw new Error(`${label}_redirected`)
+  assertPathHasNoRedirectComponents(target, `${label}_redirected`)
 }
 
 function assertContained(root: string, target: string): void {

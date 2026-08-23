@@ -1,16 +1,17 @@
 # Getting started
 
 Agent Workflow Platform is a curated extraction of a retired production system,
-not a newly written mock. The quickest path runs the real control plane and
-Python worker locally. A separate desktop demo exercises the real renderer,
-HTTP/SSE client, and recovery path against an owned deterministic adapter.
+not a newly written mock. The repository has two independently useful base
+paths—a real model streamed through the Electron/Agent-CLI contract and a
+managed task executed through the FastAPI/Python-worker stack—and one exact-
+opt-in reference tool that joins them into a narrow end-to-end vertical slice.
 
 ## Prerequisites
 
 | You want to run | Required locally |
 | --- | --- |
 | Full localhost task round trip | Docker Engine or Docker Desktop with Compose, plus Python 3.12 for the helper |
-| Desktop, admin, or mobile web | Node.js `>=22.12.0` |
+| Desktop, admin, or mobile web | Node.js `>=22.12.0`; a compatible CLI or model endpoint for real responses |
 | Static gate, workflow runtime, control plane, or Python worker | Python 3.12 |
 | VM agent | Go 1.25.13 exactly, as pinned by the [`go.mod`](../services/vm-agent/go.mod) `go` directive |
 | Shell operations checks | Bash on Linux/macOS, WSL, or Git Bash |
@@ -66,7 +67,108 @@ docker compose -f deploy/local/docker-compose.local-dev.yml down --remove-orphan
 Add `-v` only when you explicitly want to discard the demo database, worker
 state, Redis data, and generated local key.
 
-## 2. Desktop UI and local stream adapter
+## 2. Real model through Electron and the Agent CLI contract
+
+The fastest credential-free real-model path uses a local server exposing the
+OpenAI-compatible `POST /v1/chat/completions` streaming contract. For example,
+after installing Ollama and pulling `llama3.2`:
+
+### Windows PowerShell
+
+```powershell
+npm --prefix apps/desktop ci
+$env:AWP_AGENT_MODEL='llama3.2'
+npm --prefix apps/desktop run openai-compatible:electron
+```
+
+### Linux or macOS
+
+```bash
+npm --prefix apps/desktop ci
+AWP_AGENT_MODEL=llama3.2 npm --prefix apps/desktop run openai-compatible:electron
+```
+
+The launcher defaults to `http://127.0.0.1:11434/v1`, starts the actual Electron
+application, and configures the checked-in reference CLI without a shell. One
+turn follows this path:
+
+```text
+Desktop renderer
+  -> guarded main-process IPC
+  -> long-lived reference CLI subprocess over JSONL
+  -> user-selected OpenAI-compatible endpoint over streaming HTTP
+  -> translated delta/usage/done events
+  -> normal Desktop chat state and rendering
+```
+
+The reference CLI stores only conversation messages and its opaque session id
+under the ignored `apps/desktop/.agent-data/reference-agent-sessions` directory.
+On restart, Desktop supplies that id through `--resume`; the next provider
+request includes the restored history. Provider tokens are read from the
+launching process and are not written to the session file.
+
+For a remote compatible endpoint, set all of the following in the launching
+shell. The exact opt-in prevents a URL copied into another variable from
+silently enabling remote traffic:
+
+```powershell
+$env:AWP_AGENT_API_BASE_URL='https://provider.example/v1'
+$env:AWP_AGENT_API_TOKEN='<read from your own secret store>'
+$env:AWP_AGENT_MODEL='provider-model-id'
+$env:AWP_AGENT_REMOTE_API_OPT_IN='1'
+npm --prefix apps/desktop run openai-compatible:electron
+```
+
+### Connect that model to the real local worker
+
+The reference CLI is chat-only by default. With the Compose stack from step 1
+still running, launch the Desktop with its single managed-task tool enabled:
+
+```text
+python scripts/launch_local_agent_desktop.py --model YOUR_TOOL_CAPABLE_MODEL
+```
+
+The selected endpoint and model must implement streamed OpenAI-style
+`tool_calls`. The helper obtains the random Compose API key in memory and passes it only to
+the child process environment. It does not print the key or place it in a
+command argument. The complete turn can now be:
+
+```text
+Desktop -> reference Agent CLI -> real model
+        <- awp_run_managed_task tool call
+        -> FastAPI task API -> SQLite/Redis -> Python worker
+        <- allow-listed process result
+        -> real model final response -> Desktop stream
+```
+
+This reference bridge exposes exactly one tool. Arguments are bounded, the
+executable must be a basename, the worker enforces its own allow-list, and no
+shell is used. The model still chooses whether to call the tool. The worker is
+a trusted launcher, not a sandbox; do not send it untrusted code.
+
+The public CI runs this same bridge against a deterministic Chat Completions
+fixture and the real Compose control plane/worker. That proves the wiring and
+execution path without claiming that a hosted model or its credentials are in
+the repository. The separate provider regression verifies streaming and native
+session resume through a real subprocess.
+
+For richer planning or tools, an existing Agent CLI can replace the reference
+implementation by implementing the [AWP Agent CLI protocol](agent-cli-protocol.md):
+
+```powershell
+$env:AWP_AGENT_CLI_EXECUTABLE='C:\absolute\path\to\agent-cli.exe'
+$env:AWP_AGENT_DEFAULT_MODEL='provider-model-id'
+$env:AWP_AGENT_CLI_PROTOCOL='awp-jsonl'
+$env:AWP_AGENT_CLI_ARGS_JSON='[]'
+$env:AWP_AGENT_CLI_ENV_JSON='{}'
+npm --prefix apps/desktop run agent:electron
+```
+
+`agent:electron` rejects relative paths and symbolic-link executables. It also
+uses fail-visible mode: if the CLI cannot start or dies mid-turn, the Desktop
+shows that failure and never replaces it with a deterministic response.
+
+## 3. Deterministic Desktop UI and local stream adapter
 
 The command is the same in PowerShell, Linux, and macOS:
 
@@ -98,7 +200,7 @@ history/artifact contract, and restart recovery path.
 The desktop adapter on port `8787` and the control plane on port `8100` expose
 different protocols. Starting one does not silently emulate the other.
 
-## 3. Workflow runtime in an existing project
+## 4. Workflow runtime in an existing project
 
 The scheduler and guardian use only the Python standard library and keep
 mutable state under the ignored `.agent-workflow/` directory:
@@ -116,7 +218,7 @@ holding an OS lock and atomically claims dependency-ready tasks. See the
 [index](../workflows/INDEX.md) for scheduling modes, review roles, `/repro`,
 templates, and incident recipes.
 
-## 4. Public release gates
+## 5. Public release gates
 
 The static gate parses public JSON/YAML, compiles Python, checks manifests and
 documentation links, enforces GitHub-hosted-only CI, runs scanner fail-closed
@@ -151,7 +253,7 @@ Opaque binaries, package archives, databases, logs, private-key files, and
 oversized/unreadable fixtures fail closed. Installer artifacts remain a
 separate pre-tag gate because this source-preview CI does not publish them.
 
-## 5. Manual control plane and Python worker
+## 6. Manual control plane and Python worker
 
 Compose is the recommended path. Use the manual path when you want to inspect
 each process. It still supports loopback only and uses a random private key.
@@ -303,7 +405,7 @@ export AWP_DEV_API_KEY="$(tr -d '\r\n' < "$PWD/.awp-data/secrets/control-plane.k
 The helper accepts only canonical localhost, refuses redirects and ambient
 proxies, and waits for a terminal task state.
 
-## 6. Admin monitor
+## 7. Admin monitor
 
 After the control plane is healthy:
 
@@ -318,7 +420,7 @@ Compose, the retrieval command is documented in the
 [admin README](../apps/admin/README.md). The monitor is read-only and keeps the
 entered key only in browser `sessionStorage`.
 
-## 7. VM agent: hydrate once, verify offline
+## 8. VM agent: hydrate once, verify offline
 
 The Go toolchain needs its public modules once:
 

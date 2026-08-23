@@ -1,5 +1,19 @@
 # Architecture
 
+The repository has two independently useful base paths:
+
+1. real model endpoint → reference/external Agent CLI → Electron streaming UI
+   and native-session resume;
+2. FastAPI task API → SQLite/Redis → Python worker → allow-listed process →
+   result and authenticated SSE.
+
+The checked-in reference CLI can join those paths through exactly one explicit-
+opt-in tool, `awp_run_managed_task`. The model chooses whether to call it; a
+Desktop message is not automatically converted into a task. The file-backed
+workflow runtime and Go VM-agent packages remain separate composition
+boundaries. The executable/JSONL contract for the first path is specified in
+[Agent CLI protocol](agent-cli-protocol.md).
+
 Agent Workflow Platform is a production-derived monorepo for long-running
 Agent CLI work. The public extraction keeps the desktop, orchestration,
 worker, recovery, and operations mechanisms, while removing the retired
@@ -13,6 +27,7 @@ library is never presented as an already-mounted service.
 flowchart LR
     Desktop[Electron desktop] --> Local[Owned localhost chat/SSE adapter]
     Local --> CLI[Configured Agent CLI adapter]
+    CLI -. exact opt-in managed task tool .-> API
     Desktop -. optional monitoring .-> API[Loopback FastAPI control plane]
     Admin[Read-only admin monitor] --> API
     Mobile[Mobile monitoring harness] -. compatible API .-> API
@@ -41,11 +56,11 @@ repository neither bundles nor rebrands a provider binary. Runtime- and
 hosted-service behavior stays behind exact opt-ins; the public local demo uses
 an owned loopback adapter and requires no account.
 
-The desktop chat adapter and the control plane are intentionally different
-services. The adapter on `127.0.0.1:8787` implements the renderer's
-chat/history/SSE contract. The control plane on `127.0.0.1:8100` implements
-task, worker, session, health, metrics, and task-event APIs. Neither service
-pretends to implement the other's protocol.
+The desktop chat adapter and the control plane remain different services. The
+adapter on `127.0.0.1:8787` implements the renderer's chat/history/SSE contract.
+The control plane on `127.0.0.1:8100` implements task, worker, session, health,
+metrics, and task-event APIs. The optional tool bridge calls the control-plane
+API as a client; neither service pretends to implement the other's protocol.
 
 ### Control plane
 

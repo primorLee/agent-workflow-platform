@@ -957,7 +957,7 @@ export async function startSession(opts: StartSessionOpts): Promise<StartSession
   }
 
   const protocol = (process.env.AWP_AGENT_CLI_PROTOCOL ?? 'stream-json').trim()
-  if (protocol !== 'stream-json' && protocol !== 'passthrough') {
+  if (protocol !== 'stream-json' && protocol !== 'awp-jsonl' && protocol !== 'passthrough') {
     return { ok: false, error: 'invalid_cli_protocol' }
   }
   const argv = [...prefixArgs]
@@ -1441,7 +1441,8 @@ export async function sendMessage(opts: SendMessageOpts): Promise<{ ok: boolean;
     { type: 'text', text: opts.content },
   ]
 
-  // The configured stream-json protocol uses a role-wrapped user message.
+  // Both supported JSONL protocols use the same role-wrapped user message.
+  // `stream-json` also supplies compatibility argv; `awp-jsonl` does not.
   const msg = {
     type: 'user',
     message: {

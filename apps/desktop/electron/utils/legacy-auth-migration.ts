@@ -10,13 +10,13 @@ import {
   lstatSync,
   openSync,
   readSync,
-  realpathSync,
   renameSync,
   unlinkSync,
   writeSync,
   type Stats,
 } from 'node:fs'
 import { basename, isAbsolute, join, parse, relative, resolve } from 'node:path'
+import { assertPathHasNoRedirectComponents } from './canonical-path'
 
 const ALLOWED_FILES = new Set(['api_token', 'auth.json'])
 const NOFOLLOW = typeof constants.O_NOFOLLOW === 'number' ? constants.O_NOFOLLOW : 0
@@ -84,7 +84,7 @@ export function replaceLegacyAuthFile(record: LegacyAuthFile, contents: string):
 function readVerified(target: string, maxBytes: number): LegacyAuthFile {
   const pathStat = lstatSync(target)
   assertPrivateRegularFile(pathStat)
-  if (!samePath(realpathSync.native(target), resolve(target))) throw new Error('legacy_auth_file_redirected')
+  assertPathHasNoRedirectComponents(target, 'legacy_auth_file_redirected')
   let fd: number | null = null
   try {
     fd = openSync(target, constants.O_RDONLY | NOFOLLOW)
@@ -135,7 +135,7 @@ function validateRoot(value: string): string {
   const stat = lstatSync(root)
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('legacy_auth_root_unsafe')
   assertOwner(stat)
-  if (!samePath(realpathSync.native(root), root)) throw new Error('legacy_auth_root_redirected')
+  assertPathHasNoRedirectComponents(root, 'legacy_auth_root_redirected')
   return root
 }
 

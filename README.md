@@ -36,6 +36,11 @@ Agent Workflow Platform (AWP) is that product layer. Bring your model, Agent
 runtime, or CLI and your domain logic; AWP supplies the reusable horizontal
 infrastructure around it.
 
+**Current integrated scope:** Desktop ↔ one OpenAI-compatible model ↔ one
+managed-task tool ↔ FastAPI control plane ↔ Python worker. The workflow runtime,
+Go VM-agent packages, admin, and mobile monitor are real separately tested
+surfaces, but they are not all prewired into that reference turn.
+
 ![AWP productization overview: bring your agent core and ship a complete product](docs/assets/readme/productization-overview.png)
 
 | You bring | AWP gives you |
@@ -57,9 +62,10 @@ release boundary.
 
 | If you want to… | Start here |
 | --- | --- |
-| Start from a working Agent product shell | Run the no-account [Electron desktop demo](#2-launch-the-desktop-workbench) |
+| Prove the integrated model-to-worker slice | Start Compose, then run `python scripts/launch_local_agent_desktop.py --model <id>` |
+| Put a real model behind the desktop shell | Run the [OpenAI-compatible golden path](#2-run-a-real-model-in-the-desktop) |
 | Validate the backend-to-worker execution path | Run the [Docker Compose round trip](#1-run-a-complete-local-task-round-trip) |
-| Add multi-agent orchestration to an existing product | Use the [standalone workflow runtime](#3-add-durable-workflows-to-any-repository) |
+| Add multi-agent orchestration to an existing product | Use the [standalone workflow runtime](#4-add-durable-workflows-to-any-repository) |
 | Keep your existing Agent runtime | Integrate the [control plane](services/control-plane/README.md), [workers](services/worker-agent/README.md), and [operations patterns](deploy/README.md) independently |
 
 ## The platform, end to end
@@ -77,7 +83,7 @@ release boundary.
 | Path | Requirements |
 | --- | --- |
 | Complete local round trip | Docker Engine or Docker Desktop with Compose, Python 3.12 |
-| Desktop workbench | Node.js 22.12 or newer |
+| Desktop workbench | Node.js 22.12 or newer; a compatible Agent CLI or model endpoint for real responses |
 | Standalone workflow runtime | Python 3.10 or newer |
 | Go VM agent development | Go 1.25.13, pinned by [go.mod](services/vm-agent/go.mod) |
 
@@ -113,7 +119,50 @@ docker compose -f deploy/local/docker-compose.local-dev.yml down --remove-orphan
 Add <code>-v</code> only when you intentionally want to discard the local
 database, worker queue, Redis data, and generated key.
 
-### 2. Launch the desktop workbench
+### 2. Run a real model in the Desktop
+
+The checked-in reference adapter turns any OpenAI-compatible Chat Completions
+endpoint into AWP's long-lived Agent CLI subprocess protocol. With a local
+[Ollama-compatible endpoint](https://docs.ollama.com/api/openai-compatibility),
+the only required configuration is the model name:
+
+~~~powershell
+npm --prefix apps/desktop ci
+$env:AWP_AGENT_MODEL='llama3.2'
+npm --prefix apps/desktop run openai-compatible:electron
+~~~
+
+~~~bash
+npm --prefix apps/desktop ci
+AWP_AGENT_MODEL=llama3.2 npm --prefix apps/desktop run openai-compatible:electron
+~~~
+
+This path uses the actual Electron application, spawns a real local CLI
+process, streams the provider response into the normal UI event pipeline, and
+persists the model-native session for `--resume` after restart. For a remote
+compatible endpoint, also set `AWP_AGENT_API_BASE_URL`,
+`AWP_AGENT_API_TOKEN`, and the exact opt-in
+`AWP_AGENT_REMOTE_API_OPT_IN=1`.
+
+By default the reference adapter is chat-only. With the local Compose stack
+running, one explicit command enables its single managed-task tool and launches
+the same real-model Desktop path:
+
+~~~bash
+python scripts/launch_local_agent_desktop.py --model YOUR_TOOL_CAPABLE_MODEL
+~~~
+
+The endpoint and model must support streamed OpenAI-style `tool_calls`. The
+helper captures the random local key without printing it. A model may then
+call `awp_run_managed_task`; the adapter submits bounded `argv` to the FastAPI
+control plane, the trusted worker executes an allow-listed command without a
+shell, and the result returns to the model and Desktop. This is one narrow,
+working vertical slice—not a general planning or tool framework. To bring an
+existing Agent CLI, implement the small [Agent CLI protocol](docs/agent-cli-protocol.md), point
+`AWP_AGENT_CLI_EXECUTABLE` at its absolute path, set
+`AWP_AGENT_DEFAULT_MODEL`, and run `npm --prefix apps/desktop run agent:electron`.
+
+### 3. Launch the deterministic desktop workbench
 
 ~~~bash
 npm --prefix apps/desktop ci
@@ -136,7 +185,7 @@ For the browser-only development loop:
 npm --prefix apps/desktop run dev
 ~~~
 
-### 3. Add durable workflows to any repository
+### 4. Add durable workflows to any repository
 
 The scheduler and Guardian use only the Python standard library. Mutable state
 stays under the ignored <code>.agent-workflow/</code> directory:
@@ -243,6 +292,10 @@ production integration is public.
 
 ### Runnable today
 
+- Real model → reference CLI process → streamed Electron response → durable
+  native-session resume, against a user-selected OpenAI-compatible endpoint
+- Exact-opt-in reference path from that model through the FastAPI control plane,
+  real Python worker, allow-listed process, tool result, and final Desktop answer
 - Complete localhost task creation → worker claim → execution → result round trip
 - No-account Electron and browser demos with durable history and artifacts
 - Standalone scheduler, atomic batch claims, checkpoints, review roles, recipes,
@@ -259,6 +312,11 @@ production integration is public.
 These libraries have tests, but they are not silently wired into the public
 FastAPI demo or the default Go <code>main</code>. See
 [architecture.md](docs/architecture.md) for the exact seams.
+
+The opt-in reference adapter joins the real-model Desktop path and managed-task
+Compose path for one tool, `awp_run_managed_task`. It does not automatically
+turn every chat message into a task, and it does not connect the file-backed
+workflow runtime or the optional Go VM-agent libraries to that turn.
 
 ### Intentionally not shipped
 
@@ -282,6 +340,7 @@ separate VM, container, or OS identity that cannot access host credentials.
 | [services/worker-agent](services/worker-agent/README.md) | Python polling worker, private state, and offline result replay |
 | [services/vm-agent](services/vm-agent/README.md) | Go WebSocket worker, supervision, queue/replay, artifacts, and packaging |
 | [workflows](workflows/README.md) | Scheduler, Guardian, roles, commands, schemas, templates, and recipes |
+| [examples/openai-compatible-agent-cli](examples/openai-compatible-agent-cli/README.md) | Real-model reference implementation of the Desktop Agent CLI protocol |
 | [deploy](deploy/README.md) | Local Compose and observability examples |
 | [ops](ops) | Health probes, locking, WAL backup, systemd, and rollback patterns |
 
@@ -317,6 +376,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development matrix.
 
 - [Getting started](docs/getting-started.md) — platform-specific setup and every runnable path
 - [Architecture](docs/architecture.md) — contracts, data flow, and trust boundaries
+- [Agent CLI protocol](docs/agent-cli-protocol.md) — executable, JSONL, streaming, resume, and failure contract
 - [Production lessons](docs/production-lessons.md) — failures that shaped the design
 - [Workflow index](workflows/INDEX.md) — commands, modes, roles, templates, and recipes
 - [Desktop user guide](apps/desktop/USER_GUIDE.md) — UI and local workflow

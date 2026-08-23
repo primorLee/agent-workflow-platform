@@ -681,6 +681,13 @@ export async function startDemoControlPlane(options = {}) {
   const stateFile = resolve(options.stateFile || process.env.AWP_DEMO_DATA_FILE || '.demo-data/sessions.json')
   const hostedAuthOptIn = options.hostedAuthOptIn ?? process.env.AWP_HOSTED_AUTH_OPT_IN ?? '0'
   const hostedAuthEnabled = hostedAuthOptIn === '1'
+  const modelId = String(options.modelId ?? process.env.AWP_DEMO_MODEL ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL
+  const modelName = String(options.modelName ?? process.env.AWP_DEMO_MODEL_NAME ?? 'AWP Local Demo').trim() || modelId
+  const modelDescription = String(
+    options.modelDescription
+      ?? process.env.AWP_DEMO_MODEL_DESCRIPTION
+      ?? 'Deterministic local model for UI and workflow demonstrations',
+  ).trim()
   const allowedOrigins = normalizeAllowedOrigins(options.allowedOrigins)
   const demoToken = randomBytes(32).toString('base64url')
   const expectedTokenDigest = tokenDigest(demoToken)
@@ -740,10 +747,10 @@ export async function startDemoControlPlane(options = {}) {
 
       if (req.method === 'GET' && path === '/api/chat/models') {
         sendJson(res, 200, [{
-          id: DEFAULT_MODEL,
-          name: 'AWP Local Demo',
+          id: modelId,
+          name: modelName,
           provider: 'local',
-          description: 'Deterministic local model for UI and workflow demonstrations',
+          description: modelDescription,
         }], corsHeaders)
         return
       }

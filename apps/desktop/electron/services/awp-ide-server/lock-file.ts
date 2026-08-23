@@ -22,13 +22,13 @@ import {
   mkdirSync,
   openSync,
   readSync,
-  realpathSync,
   unlinkSync,
   writeSync,
   type Stats,
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { assertPathHasNoRedirectComponents } from '../../utils/canonical-path'
 
 const ROOT_DIR_NAME = 'ide'
 const ROOT_MARKER_NAME = '.awp-ide-root.json'
@@ -389,7 +389,7 @@ function assertCurrentOwner(stat: Stats, label: string): void {
 }
 
 function assertCanonicalPath(path: string, label: string): void {
-  if (!samePath(realpathSync.native(path), resolve(path))) throw new Error(`${label}_symlinked`)
+  assertPathHasNoRedirectComponents(path, `${label}_symlinked`)
 }
 
 function assertContained(root: string, target: string): void {
