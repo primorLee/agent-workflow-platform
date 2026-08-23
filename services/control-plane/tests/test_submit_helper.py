@@ -68,6 +68,18 @@ class FakeOpener:
         return self.response
 
 
+class SequenceOpener:
+    def __init__(self, outcomes) -> None:
+        self.outcomes = list(outcomes)
+
+    def open(self, _request, timeout):
+        assert timeout == 5
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+
 def test_private_opener_disables_environment_proxies_and_redirects(monkeypatch):
     monkeypatch.setattr(
         urllib.request,
@@ -135,6 +147,78 @@ def test_request_json_pins_origin_content_type_and_size():
             "GET", "http://127.0.0.1:8100", "/v1/tasks", key,
             opener=oversized,
         )
+
+
+def test_request_json_list_requires_an_array_of_objects():
+    key = "x" * 32
+    valid = FakeOpener(FakeResponse(b'[{"id":"one"},{"id":"two"}]'))
+    assert helper.request_json_list(
+        "GET",
+        "http://127.0.0.1:8100",
+        "/v1/tasks",
+        key,
+        opener=valid,
+    ) == [{"id": "one"}, {"id": "two"}]
+
+    invalid = FakeOpener(FakeResponse(b'[{"id":"one"},2]'))
+    with pytest.raises(ValueError, match="array of objects"):
+        helper.request_json_list(
+            "GET",
+            "http://127.0.0.1:8100",
+            "/v1/tasks",
+            key,
+            opener=invalid,
+        )
+
+
+def test_request_json_retrying_honors_429_retry_after(monkeypatch):
+    key = "x" * 32
+    headers = Message()
+    headers["Retry-After"] = "2"
+    limited = urllib.error.HTTPError(
+        "http://127.0.0.1:8100/v1/tasks",
+        429,
+        "limited",
+        headers,
+        io.BytesIO(b"{}"),
+    )
+    opener = SequenceOpener([limited, FakeResponse(b'{"id":"value"}')])
+    sleeps = []
+    monkeypatch.setattr(helper.time, "sleep", sleeps.append)
+
+    assert helper.request_json_retrying(
+        "GET",
+        "http://127.0.0.1:8100",
+        "/v1/tasks",
+        key,
+        deadline=helper.time.monotonic() + 10,
+        opener=opener,
+    ) == {"id": "value"}
+    assert sleeps == [2]
+
+
+def test_request_json_retrying_is_bounded_and_does_not_retry_other_errors(monkeypatch):
+    key = "x" * 32
+    headers = Message()
+    headers["Retry-After"] = "60"
+    limited = urllib.error.HTTPError(
+        "http://127.0.0.1:8100/v1/tasks",
+        429,
+        "limited",
+        headers,
+        io.BytesIO(b"{}"),
+    )
+    monkeypatch.setattr(helper.time, "sleep", lambda _delay: pytest.fail("must not sleep"))
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        helper.request_json_retrying(
+            "GET",
+            "http://127.0.0.1:8100",
+            "/v1/tasks",
+            key,
+            deadline=helper.time.monotonic() + 1,
+            opener=SequenceOpener([limited]),
+        )
+    assert helper.public_error_label(caught.value) == "HTTPError[429]"
 
 
 def test_local_origin_and_key_validation_are_fail_closed():

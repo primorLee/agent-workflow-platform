@@ -19,7 +19,8 @@ from submit_local_task import (  # noqa: E402
     TERMINAL,
     canonical_local_base,
     load_api_key,
-    request_json,
+    public_error_label,
+    request_json_retrying,
 )
 
 COMPOSE_FILE = ROOT / "deploy" / "local" / "docker-compose.local-dev.yml"
@@ -54,10 +55,18 @@ def wait_for_state(
 ) -> dict:
     last: dict = {}
     while time.monotonic() < deadline:
-        last = request_json("GET", base, f"/v1/tasks/{task_id}", api_key)
+        response = request_json_retrying(
+            "GET",
+            base,
+            f"/v1/tasks/{task_id}",
+            api_key,
+            deadline=deadline,
+        )
+        assert isinstance(response, dict)
+        last = response
         if str(last.get("status")) in expected:
             return last
-        time.sleep(0.2)
+        time.sleep(0.5)
     raise TimeoutError(
         f"task did not reach {sorted(expected)}; last status={last.get('status', 'unknown')}"
     )
@@ -74,7 +83,8 @@ def main(cli_args: list[str] | None = None) -> int:
         base = canonical_local_base(args.url)
         api_key = load_api_key()
         marker = f"crash-recovered-{uuid4().hex}"
-        created = request_json(
+        deadline = time.monotonic() + args.timeout
+        created = request_json_retrying(
             "POST",
             base,
             "/v1/tasks",
@@ -90,7 +100,9 @@ def main(cli_args: list[str] | None = None) -> int:
                     ]
                 },
             },
+            deadline=deadline,
         )
+        assert isinstance(created, dict)
         task_id = str(UUID(str(created["id"])))
         started = time.monotonic()
         running = wait_for_state(
@@ -150,7 +162,10 @@ def main(cli_args: list[str] | None = None) -> int:
         )
         return 0
     except Exception as exc:
-        print(f"FAILED: worker crash recovery raised {type(exc).__name__}", file=sys.stderr)
+        print(
+            f"FAILED: worker crash recovery raised {public_error_label(exc)}",
+            file=sys.stderr,
+        )
         return 1
     finally:
         if worker_stopped:

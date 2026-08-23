@@ -62,7 +62,7 @@ def validate_api_key(raw: str) -> str:
     return raw
 
 
-def request_json(
+def _request_json_value(
     method: str,
     base: str,
     path: str,
@@ -105,10 +105,100 @@ def request_json(
         raw = response.read(MAX_RESPONSE_BYTES + 1)
         if len(raw) > MAX_RESPONSE_BYTES:
             raise ValueError("response is too large")
-    decoded = json.loads(raw.decode("utf-8"))
+    return json.loads(raw.decode("utf-8"))
+
+
+def request_json(
+    method: str,
+    base: str,
+    path: str,
+    api_key: str,
+    body: dict[str, Any] | None = None,
+    *,
+    opener=None,
+) -> dict[str, Any]:
+    decoded = _request_json_value(
+        method,
+        base,
+        path,
+        api_key,
+        body,
+        opener=opener,
+    )
     if not isinstance(decoded, dict):
         raise ValueError("response JSON must be an object")
     return decoded
+
+
+def request_json_list(
+    method: str,
+    base: str,
+    path: str,
+    api_key: str,
+    body: dict[str, Any] | None = None,
+    *,
+    opener=None,
+) -> list[dict[str, Any]]:
+    decoded = _request_json_value(
+        method,
+        base,
+        path,
+        api_key,
+        body,
+        opener=opener,
+    )
+    if not isinstance(decoded, list) or any(not isinstance(item, dict) for item in decoded):
+        raise ValueError("response JSON must be an array of objects")
+    return decoded
+
+
+def _retry_after_seconds(exc: urllib.error.HTTPError) -> int:
+    raw = exc.headers.get("Retry-After", "1") if exc.headers is not None else "1"
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return 1
+    return max(1, min(value, 60))
+
+
+def request_json_retrying(
+    method: str,
+    base: str,
+    path: str,
+    api_key: str,
+    body: dict[str, Any] | None = None,
+    *,
+    deadline: float,
+    expect_list: bool = False,
+    opener=None,
+) -> dict[str, Any] | list[dict[str, Any]]:
+    """Retry only an explicit 429, bounded by the caller's monotonic deadline."""
+    while True:
+        try:
+            requester = request_json_list if expect_list else request_json
+            return requester(
+                method,
+                base,
+                path,
+                api_key,
+                body,
+                opener=opener,
+            )
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429:
+                raise
+            delay = _retry_after_seconds(exc)
+            exc.close()
+            if time.monotonic() + delay >= deadline:
+                raise
+            time.sleep(delay)
+
+
+def public_error_label(exc: BaseException) -> str:
+    """Return bounded diagnostics without echoing response bodies or URLs."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"HTTPError[{int(exc.code)}]"
+    return type(exc).__name__
 
 
 def discover_compose_key() -> str:
@@ -176,20 +266,29 @@ def main(cli_args: list[str] | None = None) -> int:
         argv = [executable, "-c", "print('hello from Agent Workflow Platform worker')"]
 
     try:
-        created = request_json(
+        deadline = time.monotonic() + args.timeout
+        created = request_json_retrying(
             "POST",
             base,
             "/v1/tasks",
             api_key,
             {"task_type": "command", "payload": {"argv": argv}},
+            deadline=deadline,
         )
+        assert isinstance(created, dict)
         task_id = str(UUID(str(created["id"])))
         if task_id != created["id"]:
             raise ValueError("task id is not canonical")
         print(f"submitted task {task_id}")
-        deadline = time.monotonic() + args.timeout
         while time.monotonic() < deadline:
-            task = request_json("GET", base, f"/v1/tasks/{task_id}", api_key)
+            task = request_json_retrying(
+                "GET",
+                base,
+                f"/v1/tasks/{task_id}",
+                api_key,
+                deadline=deadline,
+            )
+            assert isinstance(task, dict)
             status = str(task.get("status", "unknown"))
             if status in TERMINAL:
                 print(f"task status: {status}")
@@ -210,7 +309,7 @@ def main(cli_args: list[str] | None = None) -> int:
         json.JSONDecodeError,
     ) as exc:
         print(
-            f"FAILED: local round trip could not complete ({type(exc).__name__})",
+            f"FAILED: local round trip could not complete ({public_error_label(exc)})",
             file=sys.stderr,
         )
         return 1

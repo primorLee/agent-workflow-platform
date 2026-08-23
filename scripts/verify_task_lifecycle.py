@@ -19,7 +19,8 @@ from submit_local_task import (  # noqa: E402
     TERMINAL,
     canonical_local_base,
     load_api_key,
-    request_json,
+    public_error_label,
+    request_json_retrying,
 )
 
 
@@ -60,10 +61,11 @@ def main(cli_args: list[str] | None = None) -> int:
     started = time.monotonic()
     submitted_at: dict[str, float] = {}
     terminal_at: dict[str, float] = {}
+    deadline = started + args.timeout
     try:
         run_id = uuid4().hex
         for index in range(args.count):
-            created = request_json(
+            created = request_json_retrying(
                 "POST",
                 base,
                 "/v1/tasks",
@@ -79,16 +81,30 @@ def main(cli_args: list[str] | None = None) -> int:
                         ]
                     },
                 },
+                deadline=deadline,
             )
+            assert isinstance(created, dict)
             task_id = str(UUID(str(created["id"])))
             submitted_at[task_id] = time.monotonic()
 
-        deadline = started + args.timeout
         pending = set(submitted_at)
         failures: dict[str, str] = {}
         while pending and time.monotonic() < deadline:
-            for task_id in list(pending):
-                task = request_json("GET", base, f"/v1/tasks/{task_id}", api_key)
+            tasks = request_json_retrying(
+                "GET",
+                base,
+                "/v1/tasks",
+                api_key,
+                deadline=deadline,
+                expect_list=True,
+            )
+            assert isinstance(tasks, list)
+            tasks_by_id = {
+                str(task.get("id")): task
+                for task in tasks
+                if str(task.get("id")) in pending
+            }
+            for task_id, task in tasks_by_id.items():
                 status = str(task.get("status") or "unknown")
                 if status in TERMINAL:
                     terminal_at[task_id] = time.monotonic()
@@ -96,9 +112,12 @@ def main(cli_args: list[str] | None = None) -> int:
                     if status != "success":
                         failures[task_id] = status
             if pending:
-                time.sleep(0.1)
+                time.sleep(0.5)
     except Exception as exc:
-        print(f"FAILED: lifecycle verification raised {type(exc).__name__}", file=sys.stderr)
+        print(
+            f"FAILED: lifecycle verification raised {public_error_label(exc)}",
+            file=sys.stderr,
+        )
         return 1
 
     if pending or failures:
