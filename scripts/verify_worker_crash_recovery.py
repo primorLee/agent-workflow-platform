@@ -130,7 +130,10 @@ def main(cli_args: list[str] | None = None) -> int:
         if requeued.get("status") != "pending" or int(requeued.get("retry_count") or 0) < 1:
             raise RuntimeError("expired worker claim was not requeued")
 
-        compose("up", "-d", "worker-agent", timeout=60)
+        # The worker shares the control-plane network namespace in the local
+        # demo. Starting the existing stopped container avoids Compose
+        # reconciling (and briefly recreating) that healthy dependency.
+        compose("start", "worker-agent", timeout=60)
         worker_stopped = False
         finished = wait_for_state(
             base,
@@ -170,7 +173,7 @@ def main(cli_args: list[str] | None = None) -> int:
     finally:
         if worker_stopped:
             try:
-                compose("up", "-d", "worker-agent", timeout=60)
+                compose("start", "worker-agent", timeout=60)
             except Exception:
                 print("WARNING: worker could not be restarted", file=sys.stderr)
 
