@@ -1,252 +1,330 @@
-# Agent Workflow Platform
+<div align="center">
+  <img src="apps/desktop/public/awp-mark.svg" alt="Agent Workflow Platform" width="96">
+  <h1>Agent Workflow Platform</h1>
+  <p><strong>Make long-running agent work survive real life.</strong></p>
+  <p>
+    A local-first desktop, control plane, worker runtime, and durable workflow
+    system for Agent CLI work that must keep going across crashes, disconnects,
+    concurrent agents, and new sessions.
+  </p>
+  <p>
+    <a href="#run-it"><strong>Run it</strong></a> ·
+    <a href="#how-it-fits-together">Architecture</a> ·
+    <a href="#built-around-failure">Production lessons</a> ·
+    <a href="docs/getting-started.md">Documentation</a> ·
+    <a href="README.zh-CN.md">简体中文</a>
+  </p>
+  <p>
+    <a href="https://github.com/primorLee/agent-workflow-platform/actions/workflows/ci.yml"><img src="https://github.com/primorLee/agent-workflow-platform/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb.svg" alt="MIT License"></a>
+    <img src="https://img.shields.io/badge/local--first-no%20account-16a34a.svg" alt="Local first, no account">
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-475569.svg" alt="Windows, Linux, macOS">
+  </p>
+</div>
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+![Agent Workflow Platform desktop](apps/desktop/docs/desktop-demo.png)
 
-[![CI](https://github.com/primorLee/agent-workflow-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/primorLee/agent-workflow-platform/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+Most agent demos stop where real work begins.
 
-**A production-derived, full-stack workbench for long-running Agent CLI work:
-Electron client, local-first control plane, trusted workers, durable workflow
-state, recovery loops, and operations tooling.**
+A terminal closes. A network call succeeds but the acknowledgement is lost.
+Two agents claim the same task. A new session remembers the conclusion but not
+the exact next action. A heartbeat arrives late and a watchdog declares a
+healthy run dead.
 
-This is not a prompt collection or a clean-room toy. It is the reusable core of
-a retired commercial prototype that spent six months running real Agent work.
-The extraction preserves the mechanisms that survived failures—stream
-reconnect, session recovery, atomic claims, offline replay, guardian
-hysteresis, adversarial review, rollback, private state roots, and release
-gates—together with the regression tests that make those claims inspectable.
+Agent Workflow Platform (AWP) treats those failures as the product surface.
+It gives an existing Agent CLI a desktop experience, a local control plane,
+trusted workers, durable run state, recovery loops, review protocols, and
+operations tooling—without forcing agent reasoning into a new framework.
 
-The public extraction removes product identity, credentials, customer data,
-product-specific hosted-service integrations, and IC-design-specific logic while
-retaining the reusable implementation and failure-driven checks. It starts from
-a new Git history so removed material is not reachable. See
-[PROVENANCE.md](PROVENANCE.md) and the
-[public-release boundary](docs/public-release-boundary.md).
+This is production-derived code, not a prompt collection or a clean-room demo.
+It was extracted from a retired commercial prototype after six months of real
+agent operation, then generalized and equipped with a public, fail-closed
+release boundary.
 
-![Agent Workflow Platform local Electron demo](apps/desktop/docs/desktop-demo.png)
+## Start where you need it
 
-## What is here
+| If you want to… | Start here |
+| --- | --- |
+| See the product experience | Run the no-account [Electron desktop demo](#2-launch-the-desktop-workbench) |
+| Exercise the whole task path | Run the [Docker Compose round trip](#1-run-a-complete-local-task-round-trip) |
+| Make an existing repository recoverable | Use the [standalone workflow runtime](#3-add-durable-workflows-to-any-repository) |
+| Build your own agent product | Reuse the [control plane](services/control-plane/README.md), [workers](services/worker-agent/README.md), and [operations patterns](deploy/README.md) independently |
 
-- **Electron/Vue desktop workbench:** streamed event rendering, durable local
-  conversation/artifact state, restart recovery, guarded desktop bridges,
-  single-instance coordination, app-owned strict TOFU host-key pinning with explicit per-host reset, and isolated
-  stable/preview package/update channels. External Agent CLI execution accepts
-  only an explicit absolute executable or an explicitly signed managed-runtime
-  manifest; no provider binary is bundled. The local demo needs no account,
-  and hosted adapters are exact opt-ins.
-- **Loopback FastAPI control plane:** SQLite-backed tasks, worker registration,
-  agent heartbeat/claim/result, session liveness metadata, authenticated task
-  SSE, health, rate limiting, structured redaction, and Prometheus metrics.
-- **Strict event path:** single-process memory or Redis. Selecting Redis without
-  a working URL/dependency/connection fails startup or readiness; it never
-  silently falls back.
-- **Python polling worker:** exact trusted-execution opt-in, frozen command
-  resolution, minimal task environments, process-tree cleanup, private
-  application-owned state, token persistence outside operator YAML, and a
-  crash-safe at-least-once result queue.
-- **Go WebSocket worker:** reconnect/backoff, protocol admission, cancellation,
-  process supervision, and watchdog. Queue/replay and artifact upload remain
-  tested composition packages; the public FastAPI server does not mount its VM
-  broker protocol.
-- **Workflow operating system:** dependency-aware scheduler, cross-process file
-  locks, atomic checkpoints, run-state recovery, three-role adversarial review,
-  guardian stall detection, failure-to-recipe learning, and six-stage `/repro`
-  gates.
-- **Operations layer:** localhost Compose round trip, random key bootstrap,
-  HAProxy loopback bridge, SQLite WAL backup/restore, health-gated patterns,
-  and a Prometheus/Grafana example for the metrics path that is actually wired.
+## What you get
 
-## Architecture
+| | |
+| --- | --- |
+| **Desktop workbench**<br>Electron + Vue, streamed tool events, conversations and artifacts that survive restart, guarded desktop bridges, diagnostics, SSH host-key pinning, and isolated Stable/Preview channels. | **Durable workflow runtime**<br>Dependency-aware scheduling, cross-process locks, atomic task claims, checkpoints, Guardian recovery, role-separated review, and failure-to-recipe learning. |
+| **Local control plane**<br>FastAPI, SQLite/WAL, authenticated task SSE, worker registration, heartbeats, sessions, health, rate limits, redacted logs, and Prometheus metrics. | **Two worker models**<br>A Python polling worker with crash-safe offline results, plus a Go WebSocket worker with reconnect, admission, cancellation, process supervision, watchdog, and tested replay packages. |
+| **Operations layer**<br>Docker Compose, strict Redis selection, random-key bootstrap, loopback gateway, health probes, SQLite WAL backup/restore, systemd examples, Prometheus, and Grafana. | **Public release gates**<br>Cross-platform validation, complete-history secret scans, manifest and link checks, unsafe-fixture rejection, offline Go verification, race detection, and generated-artifact rescans. |
 
-```mermaid
-flowchart LR
-    Desktop[Electron desktop] --> Chat[Owned localhost chat/SSE adapter]
-    Chat --> CLI[Configured Agent CLI adapter]
-    Desktop -. optional monitor .-> API[Loopback FastAPI control plane]
-    Admin[Read-only admin] --> API
-    Mobile[Mobile harness] -. compatible API .-> API
-    API --> DB[(Private SQLite/WAL)]
-    API --> Broker[Memory or strict Redis]
-    Broker --> Events[Authenticated task SSE]
-    Worker[Python polling worker] --> API
-    Worker --> Process[Allow-listed trusted process]
-    VM[Go VM agent] -. downstream broker boundary .-> VMBroker[Compatible WebSocket broker]
-    Flow[Scheduler and guardian] --> Files[(File-backed workflow state)]
-    Flow -. optional adapter .-> API
-    Metrics[Prometheus/Grafana] --> API
-```
+## Run it
 
-The desktop chat adapter, FastAPI control plane, workflow pack, and Go VM
-protocol are distinct contracts. Dotted edges are extension boundaries, not
-hidden routes. The verified localhost control-plane round trip uses the Python
-worker.
+### Prerequisites
 
-Read the detailed [architecture and trust boundaries](docs/architecture.md).
+| Path | Requirements |
+| --- | --- |
+| Complete local round trip | Docker Engine or Docker Desktop with Compose, Python 3.12 |
+| Desktop workbench | Node.js 22.12 or newer |
+| Standalone workflow runtime | Python 3.10 or newer |
+| Go VM agent development | Go 1.25.13, pinned by [go.mod](services/vm-agent/go.mod) |
 
-## Quick start: real control-plane round trip
+Clone once:
 
-Docker Compose is the most complete runnable path:
+~~~bash
+git clone https://github.com/primorLee/agent-workflow-platform.git
+cd agent-workflow-platform
+~~~
 
-```text
-docker compose -f deploy/local/docker-compose.local-dev.yml config --quiet
+### 1. Run a complete local task round trip
+
+This is the best end-to-end starting point. It launches the real FastAPI
+control plane, Redis broker, Python worker, random-key bootstrap job, and
+loopback gateway:
+
+~~~bash
 docker compose -f deploy/local/docker-compose.local-dev.yml up -d --build
 python scripts/wait_for_http.py http://127.0.0.1:8100/v1/health/ready --timeout 120 --json-field database
 python scripts/submit_local_task.py --timeout 60
-```
+~~~
 
-The stack creates a random API key in a private named volume. FastAPI remains
-bound to numeric loopback inside a shared network namespace; the worker talks
-to that loopback socket and an HAProxy sidecar bridges it to host
-`127.0.0.1:8100`. The submission helper discovers the key without printing it.
+The final command submits an allow-listed, shell-free Python task, waits while
+the worker registers and claims it, and prints the returned result. The helper
+discovers the generated API key without printing it.
 
-Stop while retaining state:
+Stop the stack while keeping its state:
 
-```text
+~~~bash
 docker compose -f deploy/local/docker-compose.local-dev.yml down --remove-orphans
-```
+~~~
 
-Add `-v` only when you intentionally want to discard the local database, worker
-state, Redis data, and generated key.
+Add <code>-v</code> only when you intentionally want to discard the local
+database, worker queue, Redis data, and generated key.
 
-## Quick start: desktop and workflow pack
+### 2. Launch the desktop workbench
 
-The desktop browser demo exercises the real renderer, HTTP/SSE client, durable
-history, and restart recovery against an owned deterministic loopback adapter:
+~~~bash
+npm --prefix apps/desktop ci
+npm --prefix apps/desktop run demo:electron
+~~~
 
-```text
-cd apps/desktop
-npm ci
-npm run dev
-```
+The demo performs a clean renderer/main/preload build and launches the actual
+Electron application against its owned deterministic loopback adapter. It
+needs no account, restores conversation state after restart, and makes no
+hosted authentication request.
 
-Use `npm run demo:electron` for the Electron main/preload and clean-build path.
-The deterministic reply is not an LLM; a real Agent CLI or hosted provider is an
-explicit adapter choice.
+The deterministic reply is deliberately not presented as an LLM. The demo
+proves the real UI, bounded HTTP client, SSE parsing and rendering, durable
+history and artifact contracts, and Electron lifecycle. A real Agent CLI is an
+explicit adapter choice; no proprietary provider binary is bundled.
 
-The workflow pack runs independently with standard-library Python:
+For the browser-only development loop:
 
-```text
+~~~bash
+npm --prefix apps/desktop run dev
+~~~
+
+### 3. Add durable workflows to any repository
+
+The scheduler and Guardian use only the Python standard library. Mutable state
+stays under the ignored <code>.agent-workflow/</code> directory:
+
+~~~bash
 python workflows/runtime/scheduler.py add "Create a deterministic smoke test" 2 --group reliability
+python workflows/runtime/scheduler.py heartbeat
 python workflows/runtime/scheduler.py checkpoint "Run the regression and attach its output"
 python workflows/runtime/guardian.py resume
-```
+~~~
 
-Complete Windows, Linux, macOS, manual random-key, admin, and validation commands
-are in [docs/getting-started.md](docs/getting-started.md).
+Stop the process after the checkpoint and run the final command from a new
+terminal or agent session. The recovery instruction is rebuilt from durable
+state—not from chat memory.
 
-## Wired features versus composition libraries
+Explore scheduling modes, review roles, the six-stage reproduction gate, and
+incident recipes in the [workflow guide](workflows/README.md).
 
-| Surface | Status in this repository |
-| --- | --- |
-| Task/worker/session/health/metrics HTTP APIs | Mounted by `cloud/server.py` and covered by control-plane tests |
-| Task status SSE | Mounted, authenticated, tenant-scoped, and backed by the selected memory/Redis broker |
-| Session `resources` | Scheduling hints only; no CPU, memory, disk, container, or OS enforcement |
-| Rollout state machine | Tested library; no publish/promote route and no automatic updater |
-| OS-user sandbox helper | Tested fail-closed library; not called by the public server and has no automatic cleanup |
-| Go VM WebSocket protocol | Implemented and mock-broker tested; no matching route in the FastAPI demo |
-| Go queue/replay and artifact upload | Tested composition packages; not all wired into default `main` |
-| Observability stack | Prometheus/Grafana HTTP metrics only; no trace/log pipeline or Alertmanager delivery claim |
-| Desktop hosted adapters | Optional explicit integrations; local/no-account mode is the public default |
+## How it fits together
 
-## Production failures encoded as mechanisms
+~~~mermaid
+flowchart TB
+    subgraph Experience["Experience layer"]
+        Desktop["Electron / Vue desktop"]
+        Chat["Owned local Chat + SSE adapter"]
+        CLI["Explicit Agent CLI adapter"]
+        Admin["Read-only admin"]
+        Mobile["Expo monitor"]
+        Desktop --> Chat --> CLI
+    end
 
-The table distinguishes implementation evidence from executable regression
-evidence. A source file alone is not presented as proof of a failure mode.
+    subgraph Control["Local control plane"]
+        API["FastAPI task and session API"]
+        Broker["Memory or strict Redis broker"]
+        DB[("Private SQLite / WAL")]
+        API <--> Broker
+        API <--> DB
+    end
 
-| Mechanism | Failure it addresses | Evidence in this repository |
+    subgraph Execution["Execution layer"]
+        PyWorker["Python polling worker"]
+        Process["Allow-listed trusted process"]
+        VmAgent["Go VM agent"]
+        VmBroker["Compatible downstream WS broker"]
+        PyWorker --> Process
+        VmAgent -.-> VmBroker
+    end
+
+    subgraph Workflow["Durable workflow layer"]
+        Scheduler["Scheduler + review gates"]
+        Guardian["Guardian recovery"]
+        State[("Atomic file state")]
+        Scheduler <--> State
+        Guardian <--> State
+    end
+
+    Desktop -. optional monitoring .-> API
+    Admin --> API
+    Mobile -. compatible API .-> API
+    PyWorker <--> API
+    Scheduler -. optional adapter .-> API
+    Metrics["Prometheus / Grafana"] --> API
+~~~
+
+The desktop Chat adapter, FastAPI control plane, file-backed workflow runtime,
+and Go VM protocol are deliberately separate contracts. Dotted lines are
+extension boundaries, not hidden routes. The verified Compose round trip uses
+the Python worker.
+
+Read the full [architecture and trust-boundary guide](docs/architecture.md).
+
+## Built around failure
+
+AWP's most important features started as incident fixes. The repository keeps
+both the mechanism and an executable regression whenever the public extraction
+can reproduce the failure safely.
+
+| When this happens | The system does this | Inspect it |
 | --- | --- | --- |
-| Cross-session checkpoint recovery | A process dies after useful work, but a chat summary omits the exact next action and evidence | [`scheduler.py`](workflows/runtime/scheduler.py) writes atomic checkpoints; [`guardian.py`](workflows/runtime/guardian.py) reconstructs a recovery instruction; [`validate_workflows.py`](workflows/validation/validate_workflows.py) interrupts and resumes disposable state |
-| Cross-process scheduler transactions | Multiple agents report successful writes while last-writer-wins silently loses tasks | The scheduler holds an OS lock across read/modify/atomic-replace, retries bounded sharing failures, and the workflow validator launches 24 concurrent writers and requires 24 unique tasks |
-| Atomic batch claim | A preview looks correct, but execution starts an empty batch or two agents claim the same task | One locked transaction selects dependency-ready work, marks it `in_progress`, and creates the batch; the validator rejects a second overlapping claim |
-| Authenticated task SSE | A dropped or cross-tenant event path leaves the UI stale or leaks status | [`events_stream.py`](services/control-plane/cloud/routes/events_stream.py) subscribes before its authoritative snapshot and always unsubscribes; broker tests cover memory/Redis envelopes, readiness, failure rollback, and tenant-scoped routes |
-| Crash-safe offline results | A worker completes during a network partition and the result disappears | Python [`cloud_client.py`](services/worker-agent/cloud_client.py) uses private exclusive records, atomic claims, orphan recovery, FIFO retry, and a rejected queue; Go [`queue.go`](services/vm-agent/internal/queue/queue.go) and [`replay.go`](services/vm-agent/internal/replay/replay.go) test the corresponding composition packages |
-| Private application state roots | A service follows a link, adopts an unrelated directory, or writes credentials into operator configuration | Control-plane [`database.py`](services/control-plane/cloud/database.py) and worker [`storage.py`](services/worker-agent/storage.py) enforce canonical marked roots, POSIX ownership/mode, and cross-platform link/reparse checks; worker token tests require `state/agent.token` and unchanged YAML |
-| SQLite WAL discipline | Concurrent claim/result/replay produces `SQLITE_BUSY`, or a backup misses acknowledged state | Control-plane tests cover atomic idempotency and claims; Go queue tests cover concurrent writers and migration; [`test_ops.py`](ops/tests/test_ops.py) restores a live-WAL backup and checks its digest |
-| Guardian hysteresis | One delayed heartbeat creates a false stopped verdict or alert storm | The guardian requires three consecutive failures and a cooldown; [`verify_guardian_hysteresis.py`](scripts/verify_guardian_hysteresis.py) checks threshold, cooldown, and healthy reset without sleeping |
-| Health-gated rollback | A release is promoted on process liveness, then serves broken traffic with no safe return | [`rollout.py`](services/control-plane/cloud/rollout.py) preserves immutable versions, canary evaluation, and previous-stable restoration; [`test_rollout.py`](services/control-plane/tests/test_rollout.py) covers rollback as a composition library |
+| A process or session disappears after useful work | Saves atomic checkpoints and reconstructs a precise recovery instruction | [Scheduler](workflows/runtime/scheduler.py), [Guardian](workflows/runtime/guardian.py) |
+| Multiple agents update the same run | Holds an OS lock across read, claim, update, and atomic replacement | [Workflow validator](workflows/validation/validate_workflows.py) |
+| A worker finishes while the network is down | Persists results, recovers orphan claims, and replays in FIFO order | [Python worker](services/worker-agent/cloud_client.py), [Go queue](services/vm-agent/internal/queue/queue.go) |
+| An SSE client reconnects between subscribe and snapshot | Subscribes first, reads the authoritative snapshot, and always unsubscribes | [SSE route](services/control-plane/cloud/routes/events_stream.py) |
+| SQLite is busy or a live database is backed up | Uses WAL-aware concurrency and restores the backup in regression tests | [Operations tests](ops/tests/test_ops.py) |
+| One heartbeat is late | Requires repeated failure and applies cooldown before another Guardian alert | [Hysteresis check](scripts/verify_guardian_hysteresis.py) |
+| A rollout is alive but unhealthy | Preserves immutable versions and restores the previous stable candidate | [Rollout library](services/control-plane/cloud/rollout.py) |
 
-The failure analysis behind these mechanisms is summarized in
-[docs/production-lessons.md](docs/production-lessons.md).
+The incident-to-mechanism story is documented in
+[Production lessons](docs/production-lessons.md).
 
-## Repository map
+## Project boundaries
 
-| Path | Purpose |
+Clear boundaries make this repository useful without pretending every
+production integration is public.
+
+### Runnable today
+
+- Complete localhost task creation → worker claim → execution → result round trip
+- No-account Electron and browser demos with durable history and artifacts
+- Standalone scheduler, atomic batch claims, checkpoints, review roles, recipes,
+  and Guardian recovery
+- Read-only admin and mobile monitoring clients
+- Prometheus/Grafana metrics example and SQLite WAL backup/restore tooling
+
+### Available as tested composition libraries
+
+- Go VM WebSocket protocol, SQLite queue/replay, and artifact upload
+- Health-gated rollout state machine
+- Fail-closed OS-user workspace helper
+
+These libraries have tests, but they are not silently wired into the public
+FastAPI demo or the default Go <code>main</code>. See
+[architecture.md](docs/architecture.md) for the exact seams.
+
+### Intentionally not shipped
+
+- Hosted commercial services, account automation, private relays, customer data, or product identity
+- A public VM broker, automatic VM-agent updater, or remote multi-tenant deployment
+- A bundled proprietary Agent CLI
+- A security boundary for arbitrary untrusted code
+- Signed desktop installers or an official release tag
+
+The Python and Go workers are trusted launchers. Run untrusted jobs inside a
+separate VM, container, or OS identity that cannot access host credentials.
+
+## Repository guide
+
+| Path | What lives there |
 | --- | --- |
-| [`apps/desktop`](apps/desktop/README.md) | Electron/Vue Agent CLI workbench and owned local demo adapter |
-| [`apps/admin`](apps/admin/README.md) | Read-only Vue control-plane monitor |
-| [`apps/mobile`](apps/mobile/README.md) | Expo monitoring harness |
-| [`services/control-plane`](services/control-plane/README.md) | Loopback FastAPI task/session/agent/SSE service plus tested rollout/sandbox libraries |
-| [`services/worker-agent`](services/worker-agent/README.md) | Trusted opt-in Python polling worker with private state and offline replay |
-| [`services/vm-agent`](services/vm-agent/README.md) | Go WebSocket worker and separately composed queue/replay/artifact packages |
-| [`workflows`](workflows/README.md) | Scheduler, guardian, run state, review roles, commands, recipes, and schemas |
-| [`deploy`](deploy/README.md) | Local stack and loopback Prometheus/Grafana example |
-| `ops` | Health, locking, WAL backup, and fail-closed service patterns |
+| [apps/desktop](apps/desktop/README.md) | Electron/Vue workbench, local adapter, lifecycle, packaging, and UI tests |
+| [apps/admin](apps/admin/README.md) | Read-only Vue control-plane monitor |
+| [apps/mobile](apps/mobile/README.md) | Expo monitoring harness |
+| [services/control-plane](services/control-plane/README.md) | FastAPI task/session/worker/SSE service and composition libraries |
+| [services/worker-agent](services/worker-agent/README.md) | Python polling worker, private state, and offline result replay |
+| [services/vm-agent](services/vm-agent/README.md) | Go WebSocket worker, supervision, queue/replay, artifacts, and packaging |
+| [workflows](workflows/README.md) | Scheduler, Guardian, roles, commands, schemas, templates, and recipes |
+| [deploy](deploy/README.md) | Local Compose and observability examples |
+| [ops](ops) | Health probes, locking, WAL backup, systemd, and rollback patterns |
 
-## Validation
+## Verify it
 
-`scripts/validate.py` is the cross-platform entrypoint. It never installs
-component dependencies or contacts hosted services implicitly. CI uses
-GitHub-hosted runners, localhost fixtures, dependency-file-scoped caches, and
-no repository secrets.
+Use the cross-platform validator to run only the surfaces you care about:
 
-```text
+~~~bash
 python scripts/doctor.py --component core
 python scripts/validate.py --component static --component workflows
-python scripts/validate.py --component control-plane
-python scripts/validate.py --component worker-agent
-python scripts/validate.py --component vm-agent
-python scripts/validate.py --component desktop
-python scripts/validate.py --component admin --component mobile
+python scripts/validate.py --component control-plane --component worker-agent
 python scripts/validate.py --component operations
-```
+~~~
 
-Hydrate Go modules once with `go mod download` under `services/vm-agent` before
-the VM-agent command. Validation then forces `GOPROXY=off` and `GOSUMDB=off` so
-a missing cache fails instead of silently reaching the network.
+Component gates also cover desktop, admin, mobile, and the Go VM agent. The
+public CI matrix runs on Windows, Linux, and macOS and includes:
 
-The static release gate parses public manifests and docs, compiles Python, runs
-black-box scanner bypass cases, scans generated build trees when present, and
-can inspect every reachable Git blob with `--history`. Public CI also pins and
-runs Gitleaks and TruffleHog over complete history.
+- complete-history Gitleaks and TruffleHog scans;
+- public-boundary, manifest, link, and generated-artifact checks;
+- control-plane, worker, workflow, desktop, admin, mobile, and operations tests;
+- a real Docker Compose task round trip;
+- Go tests, replay stress, race detection, vet, build, module integrity, and
+  reachable-vulnerability scanning.
 
-Opaque binary test fixtures are blocked rather than trusted by a
+The validator never installs component dependencies or contacts a hosted
+service implicitly. The release gate does not trust an opaque fixture merely
+because it has a
 synthetic/example/demo filename. IC-design artifacts, archives, executable
-packages, databases, logs, private-key files, and oversized or unreadable
-fixtures fail closed.
+packages, databases, logs, unreadable files, and oversized fixtures are rejected.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development matrix.
 
-## Security boundaries
+## Documentation
 
-- The FastAPI service supports numeric loopback binding only. The local Compose
-  bridge does not weaken that server invariant and publishes only host
-  `127.0.0.1:8100`.
-- Control-plane SQLite and worker state use dedicated marked roots. On first
-  start the final directory must be absent (or an explicitly bootstrapped empty
-  control-plane root); old unmarked directories are not auto-migrated. POSIX
-  validates owner/mode; Windows rejects links/reparse points and relies on an
-  operator-restricted parent ACL.
-- The Python and Go workers are trusted launchers, not OS sandboxes. Run
-  untrusted work inside a separate VM, container, or OS identity without host
-  credentials.
-- Never place credentials in repository configuration, fixtures, screenshots,
-  logs, task payloads, workflow state, or `VITE_*` variables.
-- Report vulnerabilities through GitHub private security advisories as described
-  in [SECURITY.md](SECURITY.md).
+- [Getting started](docs/getting-started.md) — platform-specific setup and every runnable path
+- [Architecture](docs/architecture.md) — contracts, data flow, and trust boundaries
+- [Production lessons](docs/production-lessons.md) — failures that shaped the design
+- [Workflow index](workflows/INDEX.md) — commands, modes, roles, templates, and recipes
+- [Desktop user guide](apps/desktop/USER_GUIDE.md) — UI and local workflow
+- [Security policy](SECURITY.md) — supported reporting channel and operating assumptions
+- [Public release boundary](docs/public-release-boundary.md) — what the release gate rejects
+- [Provenance](PROVENANCE.md) — source lineage and extraction rules
 
-## Source-preview status
+## Origin and public release
 
-This repository publishes source only. No binary installer artifact or release
-tag is published, and it includes no bundled proprietary Agent CLI, VM-agent
-self-updater, or public VM-broker service. VM package, one-line install, and
-local package lifecycle targets exit
-with status 77 before mutation. The reviewed manual VM installer requires a
-release owner to supply an external immutable binary, SHA-256 digest, detached
-signature, trusted public key, API-key file, and compatible endpoint.
+AWP is the reusable core of a retired commercial Agent CLI product. The public
+repository preserves the implementation and regression tests that survived
+real operation while removing credentials, customer data, private network
+topology, and product identity. It excludes
+product-specific hosted-service integrations, and IC-design-specific logic while
+retaining the reusable implementation and failure-driven tests.
 
-Before a first tag, the project still requires a release signing key and pin,
-packaged third-party-license inventory, Linux installer matrix, real
-systemd/rollout drill, complete artifact scans, green CI, and a fresh-clone
-smoke test. These limits are part of the public contract, not omitted roadmap
-fine print.
+The project starts from a new Git history so removed private material is not
+reachable through old commits. The public boundary is enforced locally and in
+CI rather than relying on manual review alone.
+
+## Contributing and security
+
+Issues and pull requests are welcome. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md), keep new integrations behind explicit
+boundaries, and include a regression for every repaired failure mode.
+
+Please report vulnerabilities through GitHub private security advisories as
+described in [SECURITY.md](SECURITY.md). Do not open a public issue containing
+credentials, private paths, or exploit details.
 
 ## License
 
