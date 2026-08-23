@@ -92,6 +92,7 @@ func (r *Runner) Execute(ctx context.Context, offer *protocol.TaskOfferPayload, 
 		})
 		return
 	}
+	prepareProcessTree(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -210,8 +211,9 @@ func (r *Runner) Cancel(taskID string) bool {
 		return false
 	}
 	// SIGKILL — SIGTERM grace handling lives in spec §5.4 cancel flow at the
-	// dialer level (not here). Keep this simple.
-	_ = cmd.Process.Kill()
+	// dialer level. On Linux this targets the isolated process group so children
+	// cannot survive while retaining stdout/stderr pipes.
+	_ = killProcessTree(cmd)
 	return true
 }
 

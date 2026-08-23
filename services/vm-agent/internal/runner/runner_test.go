@@ -158,6 +158,34 @@ func TestRunnerCancel(t *testing.T) {
 	}
 }
 
+func TestRunnerContextCancellationStopsProcessTree(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux process-group behavior")
+	}
+	resolver := func(ctx context.Context, _ *protocol.TaskOfferPayload) (*exec.Cmd, error) {
+		return exec.CommandContext(ctx, "sh", "-c", "sleep 10 & wait"), nil
+	}
+	r := NewWithResolver(silentLogger(), resolver)
+	sink := &capturingSink{}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		r.Execute(ctx, &protocol.TaskOfferPayload{TaskID: "tree"}, sink)
+		close(done)
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("Execute did not unblock after context cancellation")
+	}
+	if sink.complete == nil || sink.complete.Status != "canceled" {
+		t.Fatalf("expected canceled completion, got %+v", sink.complete)
+	}
+}
+
 func TestRunnerResolverError(t *testing.T) {
 	resolver := func(context.Context, *protocol.TaskOfferPayload) (*exec.Cmd, error) {
 		return nil, &tempError{"bad task"}
