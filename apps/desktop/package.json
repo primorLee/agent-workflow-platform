@@ -51,7 +51,7 @@
     "demo:electron:smoke": "run-s demo:electron:check demo:electron:ui-smoke"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "dompurify": "^3.4.0",
     "electron-updater": "^6.8.9",
     "lucide-vue-next": "^1.0.0",
