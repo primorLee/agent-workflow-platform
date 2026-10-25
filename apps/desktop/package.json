@@ -73,7 +73,7 @@
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/test-utils": "^2.4.8",
     "@vue/tsconfig": "^0.9.0",
-    "electron": "^41.10.6",
+    "electron": "^42.11.16",
     "electron-builder": "^26.15.7",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.4",
